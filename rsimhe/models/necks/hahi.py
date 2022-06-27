@@ -2,13 +2,13 @@
 import torch.nn as nn
 from mmcv.cnn import ConvModule, xavier_init
 
-from depth.ops import resize
-from depth.models.builder import NECKS
+from rsimhe.ops import resize
+from rsimhe.models.builder import NECKS
 
 import math
 import torch
 
-# from depth.models.necks.ops.modules import MSDeformAttn
+# from rsimhe.models.necks.ops.modules import MSDeformAttn
 
 from mmcv.runner import BaseModule, auto_fp16
 from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_

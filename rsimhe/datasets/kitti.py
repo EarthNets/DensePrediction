@@ -10,12 +10,12 @@ from mmcv.utils import print_log
 from prettytable import PrettyTable
 from torch.utils.data import Dataset
 
-from depth.core import pre_eval_to_metrics, metrics, eval_metrics
-from depth.utils import get_root_logger
-from depth.datasets.builder import DATASETS
-from depth.datasets.pipelines import Compose
+from rsimhe.core import pre_eval_to_metrics, metrics, eval_metrics
+from rsimhe.utils import get_root_logger
+from rsimhe.datasets.builder import DATASETS
+from rsimhe.datasets.pipelines import Compose
 
-from depth.ops import resize
+from rsimhe.ops import resize
 
 from PIL import Image
 
@@ -24,7 +24,7 @@ import torch
 
 @DATASETS.register_module()
 class KITTIDataset(Dataset):
-    """KITTI dataset for depth estimation. An example of file structure
+    """KITTI dataset for rsimhe estimation. An example of file structure
     is as followed.
     .. code-block:: none
         ├── data
@@ -36,11 +36,11 @@ class KITTIDataset(Dataset):
         │   │   │   ├── date_2
         │   │   │   |   ...
         │   │   │   |   ...
-        |   │   ├── gt_depth (ann_dir)
+        |   │   ├── gt_rsimhe (ann_dir)
         │   │   │   ├── date_drive_number_sync
     split file format:
     input_image: 2011_09_26/2011_09_26_drive_0002_sync/image_02/data/0000000069.png 
-    gt_depth:    2011_09_26_drive_0002_sync/proj_depth/groundtruth/image_02/0000000069.png 
+    gt_rsimhe:    2011_09_26_drive_0002_sync/proj_rsimhe/groundtruth/image_02/0000000069.png 
     focal:       721.5377 (following the focal setting in BTS, but actually we do not use it)
     Args:
         pipeline (list[dict]): Processing pipeline
@@ -49,11 +49,11 @@ class KITTIDataset(Dataset):
         split (str, optional): Split txt file. Split should be specified, only file in the splits will be loaded.
         data_root (str, optional): Data root for img_dir/ann_dir. Default: None.
         test_mode (bool): If test_mode=True, gt wouldn't be loaded.
-        depth_scale=256: Default KITTI pre-process. divide 256 to get gt measured in meters (m)
+        rsimhe_scale=256: Default KITTI pre-process. divide 256 to get gt measured in meters (m)
         garg_crop=True: Following Adabins, use grag crop to eval results.
         eigen_crop=False: Another cropping setting.
-        min_depth=1e-3: Default min depth value.
-        max_depth=80: Default max depth value.
+        min_rsimhe=1e-3: Default min rsimhe value.
+        max_rsimhe=80: Default max rsimhe value.
     """
 
 
@@ -64,11 +64,11 @@ class KITTIDataset(Dataset):
                  split=None,
                  data_root=None,
                  test_mode=False,
-                 depth_scale=256,
+                 rsimhe_scale=256,
                  garg_crop=True,
                  eigen_crop=False,
-                 min_depth=1e-3,
-                 max_depth=80):
+                 min_rsimhe=1e-3,
+                 max_rsimhe=80):
 
         self.pipeline = Compose(pipeline)
         self.img_dir = img_dir
@@ -76,11 +76,11 @@ class KITTIDataset(Dataset):
         self.split = split
         self.data_root = data_root
         self.test_mode = test_mode
-        self.depth_scale = depth_scale
+        self.rsimhe_scale = rsimhe_scale
         self.garg_crop = garg_crop
         self.eigen_crop = eigen_crop
-        self.min_depth = min_depth # just for evaluate. (crop gt to certain range)
-        self.max_depth = max_depth # just for evaluate.
+        self.min_rsimhe = min_rsimhe # just for evaluate. (crop gt to certain range)
+        self.max_rsimhe = max_rsimhe # just for evaluate.
 
         # join paths if data_root is specified
         if self.data_root is not None:
@@ -109,18 +109,18 @@ class KITTIDataset(Dataset):
             list[dict]: All image info of dataset.
         """
 
-        self.invalid_depth_num = 0
+        self.invalid_rsimhe_num = 0
         img_infos = []
         if split is not None:
             with open(split) as f:
                 for line in f:
                     img_info = dict()
                     if ann_dir is not None: # benchmark test or unsupervised future
-                        depth_map = line.strip().split(" ")[1]
-                        if depth_map == 'None':
-                            self.invalid_depth_num += 1
+                        rsimhe_map = line.strip().split(" ")[1]
+                        if rsimhe_map == 'None':
+                            self.invalid_rsimhe_num += 1
                             continue
-                        img_info['ann'] = dict(depth_map=depth_map)
+                        img_info['ann'] = dict(rsimhe_map=rsimhe_map)
                     img_name = line.strip().split(" ")[0]
                     img_info['filename'] = img_name
                     img_infos.append(img_info)
@@ -130,7 +130,7 @@ class KITTIDataset(Dataset):
 
         # github issue:: make sure the same order
         img_infos = sorted(img_infos, key=lambda x: x['filename'])
-        print_log(f'Loaded {len(img_infos)} images. Totally {self.invalid_depth_num} invalid pairs are filtered', logger=get_root_logger())
+        print_log(f'Loaded {len(img_infos)} images. Totally {self.invalid_rsimhe_num} invalid pairs are filtered', logger=get_root_logger())
 
         return img_infos
 
@@ -146,10 +146,10 @@ class KITTIDataset(Dataset):
 
     def pre_pipeline(self, results):
         """Prepare results dict for pipeline."""
-        results['depth_fields'] = []
+        results['rsimhe_fields'] = []
         results['img_prefix'] = self.img_dir
-        results['depth_prefix'] = self.ann_dir
-        results['depth_scale'] = self.depth_scale
+        results['rsimhe_prefix'] = self.ann_dir
+        results['rsimhe_scale'] = self.rsimhe_scale
 
         results['cam_intrinsic_dict'] = {
             '2011_09_26' : [[7.215377e+02, 0.000000e+00, 6.095593e+02, 4.485728e+01], 
@@ -214,32 +214,32 @@ class KITTIDataset(Dataset):
 
     def format_results(self, results, imgfile_prefix=None, indices=None, **kwargs):
         """Place holder to format result to dataset specific output."""
-        results[0] = (results[0] * self.depth_scale).astype(np.uint16)
+        results[0] = (results[0] * self.rsimhe_scale).astype(np.uint16)
         return results
 
-    def get_gt_depth_maps(self):
-        """Get ground truth depth maps for evaluation."""
+    def get_gt_rsimhe_maps(self):
+        """Get ground truth rsimhe maps for evaluation."""
         for img_info in self.img_infos:
-            depth_map = osp.join(self.ann_dir, img_info['ann']['depth_map'])
-            depth_map_gt = np.asarray(Image.open(depth_map), dtype=np.float32) / self.depth_scale
-            yield depth_map_gt
+            rsimhe_map = osp.join(self.ann_dir, img_info['ann']['rsimhe_map'])
+            rsimhe_map_gt = np.asarray(Image.open(rsimhe_map), dtype=np.float32) / self.rsimhe_scale
+            yield rsimhe_map_gt
     
-    def eval_kb_crop(self, depth_gt):
+    def eval_kb_crop(self, rsimhe_gt):
         """Following Adabins, Do kb crop for testing"""
-        height = depth_gt.shape[0]
-        width = depth_gt.shape[1]
+        height = rsimhe_gt.shape[0]
+        width = rsimhe_gt.shape[1]
         top_margin = int(height - 352)
         left_margin = int((width - 1216) / 2)
-        depth_cropped = depth_gt[top_margin: top_margin + 352, left_margin: left_margin + 1216]
-        depth_cropped = np.expand_dims(depth_cropped, axis=0)
-        return depth_cropped
+        rsimhe_cropped = rsimhe_gt[top_margin: top_margin + 352, left_margin: left_margin + 1216]
+        rsimhe_cropped = np.expand_dims(rsimhe_cropped, axis=0)
+        return rsimhe_cropped
 
-    def eval_mask(self, depth_gt):
+    def eval_mask(self, rsimhe_gt):
         """Following Adabins, Do grag_crop or eigen_crop for testing"""
-        depth_gt = np.squeeze(depth_gt)
-        valid_mask = np.logical_and(depth_gt > self.min_depth, depth_gt < self.max_depth)
+        rsimhe_gt = np.squeeze(rsimhe_gt)
+        valid_mask = np.logical_and(rsimhe_gt > self.min_rsimhe, rsimhe_gt < self.max_rsimhe)
         if self.garg_crop or self.eigen_crop:
-            gt_height, gt_width = depth_gt.shape
+            gt_height, gt_width = rsimhe_gt.shape
             eval_mask = np.zeros(valid_mask.shape)
 
             if self.garg_crop:
@@ -256,7 +256,7 @@ class KITTIDataset(Dataset):
     def pre_eval(self, preds, indices):
         """Collect eval result from each iteration.
         Args:
-            preds (list[torch.Tensor] | torch.Tensor): the depth estimation.
+            preds (list[torch.Tensor] | torch.Tensor): the rsimhe estimation.
             indices (list[int] | int): the prediction related ground truth
                 indices.
         Returns:
@@ -273,17 +273,17 @@ class KITTIDataset(Dataset):
         pre_eval_preds = []
 
         for i, (pred, index) in enumerate(zip(preds, indices)):
-            depth_map = osp.join(self.ann_dir,
-                               self.img_infos[index]['ann']['depth_map'])
+            rsimhe_map = osp.join(self.ann_dir,
+                               self.img_infos[index]['ann']['rsimhe_map'])
 
-            depth_map_gt = np.asarray(Image.open(depth_map), dtype=np.float32) / self.depth_scale
-            depth_map_gt = self.eval_kb_crop(depth_map_gt)
-            valid_mask = self.eval_mask(depth_map_gt)
+            rsimhe_map_gt = np.asarray(Image.open(rsimhe_map), dtype=np.float32) / self.rsimhe_scale
+            rsimhe_map_gt = self.eval_kb_crop(rsimhe_map_gt)
+            valid_mask = self.eval_mask(rsimhe_map_gt)
             
-            eval = metrics(depth_map_gt[valid_mask], 
+            eval = metrics(rsimhe_map_gt[valid_mask], 
                            pred[valid_mask], 
-                           min_depth=self.min_depth,
-                           max_depth=self.max_depth)
+                           min_rsimhe=self.min_rsimhe,
+                           max_rsimhe=self.max_rsimhe)
 
             pre_eval_results.append(eval)
 
@@ -296,7 +296,7 @@ class KITTIDataset(Dataset):
         """Evaluate the dataset.
         Args:
             results (list[tuple[torch.Tensor]] | list[str]): per image pre_eval
-                 results or predict depth map for computing evaluation
+                 results or predict rsimhe map for computing evaluation
                  metric.
             logger (logging.Logger | None | str): Logger used for printing
                 related information during evaluation. Default: None.
@@ -309,9 +309,9 @@ class KITTIDataset(Dataset):
         # test a list of files
         if mmcv.is_list_of(results, np.ndarray) or mmcv.is_list_of(
                 results, str):
-            gt_depth_maps = self.get_gt_depth_maps()
+            gt_rsimhe_maps = self.get_gt_rsimhe_maps()
             ret_metrics = eval_metrics(
-                gt_depth_maps,
+                gt_rsimhe_maps,
                 results)
         # test a list of pre_eval_results
         else:

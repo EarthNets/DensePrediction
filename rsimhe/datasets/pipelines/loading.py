@@ -14,10 +14,10 @@ class LoadKITTICamIntrinsic(object):
         """Call function to load multiple types annotations.
 
         Args:
-            results (dict): Result dict from :obj:`depth.CustomDataset`.
+            results (dict): Result dict from :obj:`rsimhe.CustomDataset`.
 
         Returns:
-            dict: The dict contains loaded depth estimation annotations.
+            dict: The dict contains loaded rsimhe estimation annotations.
         """
 
         # raw input
@@ -40,7 +40,7 @@ class LoadKITTICamIntrinsic(object):
 
 @PIPELINES.register_module()
 class DepthLoadAnnotations(object):
-    """Load annotations for depth estimation.
+    """Load annotations for rsimhe estimation.
 
     Args:
         file_client_args (dict): Arguments to instantiate a FileClient.
@@ -60,28 +60,28 @@ class DepthLoadAnnotations(object):
         """Call function to load multiple types annotations.
 
         Args:
-            results (dict): Result dict from :obj:`depth.CustomDataset`.
+            results (dict): Result dict from :obj:`rsimhe.CustomDataset`.
 
         Returns:
-            dict: The dict contains loaded depth estimation annotations.
+            dict: The dict contains loaded rsimhe estimation annotations.
         """
 
         if self.file_client is None:
             self.file_client = mmcv.FileClient(**self.file_client_args)
 
-        if results.get('depth_prefix', None) is not None:
-            filename = osp.join(results['depth_prefix'],
-                                results['ann_info']['depth_map'])
+        if results.get('rsimhe_prefix', None) is not None:
+            filename = osp.join(results['rsimhe_prefix'],
+                                results['ann_info']['rsimhe_map'])
         else:
-            filename = results['ann_info']['depth_map']
+            filename = results['ann_info']['rsimhe_map']
 
-        depth_gt = np.asarray(Image.open(filename),
-                              dtype=np.float32) / results['depth_scale']
+        rsimhe_gt = np.asarray(Image.open(filename),
+                              dtype=np.float32) / results['rsimhe_scale']
 
-        results['depth_gt'] = depth_gt
-        results['depth_ori_shape'] = depth_gt.shape
+        results['rsimhe_gt'] = rsimhe_gt
+        results['rsimhe_ori_shape'] = rsimhe_gt.shape
 
-        results['depth_fields'].append('depth_gt')
+        results['rsimhe_fields'].append('rsimhe_gt')
         return results
 
     def __repr__(self):
@@ -92,7 +92,7 @@ class DepthLoadAnnotations(object):
 
 @PIPELINES.register_module()
 class DisparityLoadAnnotations(object):
-    """Load annotations for depth estimation.
+    """Load annotations for rsimhe estimation.
     It's only for the cityscape dataset. TODO: more general.
 
     Args:
@@ -113,20 +113,20 @@ class DisparityLoadAnnotations(object):
         """Call function to load multiple types annotations.
 
         Args:
-            results (dict): Result dict from :obj:`depth.CustomDataset`.
+            results (dict): Result dict from :obj:`rsimhe.CustomDataset`.
 
         Returns:
-            dict: The dict contains loaded depth estimation annotations.
+            dict: The dict contains loaded rsimhe estimation annotations.
         """
 
         if self.file_client is None:
             self.file_client = mmcv.FileClient(**self.file_client_args)
 
-        if results.get('depth_prefix', None) is not None:
-            filename = osp.join(results['depth_prefix'],
-                                results['ann_info']['depth_map'])
+        if results.get('rsimhe_prefix', None) is not None:
+            filename = osp.join(results['rsimhe_prefix'],
+                                results['ann_info']['rsimhe_map'])
         else:
-            filename = results['ann_info']['depth_map']
+            filename = results['ann_info']['rsimhe_map']
 
         if results.get('camera_prefix', None) is not None:
             camera_filename = osp.join(results['camera_prefix'],
@@ -140,17 +140,17 @@ class DisparityLoadAnnotations(object):
         focal_length = camera['intrinsic']['fx']
 
         disparity = (np.asarray(Image.open(filename), dtype=np.float32) -
-                     1.) / results['depth_scale']
+                     1.) / results['rsimhe_scale']
         NaN = disparity <= 0
 
         disparity[NaN] = 1
-        depth_map = baseline * focal_length / disparity
-        depth_map[NaN] = 0
+        rsimhe_map = baseline * focal_length / disparity
+        rsimhe_map[NaN] = 0
 
-        results['depth_gt'] = depth_map
-        results['depth_ori_shape'] = depth_map.shape
+        results['rsimhe_gt'] = rsimhe_map
+        results['rsimhe_ori_shape'] = rsimhe_map.shape
 
-        results['depth_fields'].append('depth_gt')
+        results['rsimhe_fields'].append('rsimhe_gt')
         return results
 
     def __repr__(self):

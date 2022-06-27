@@ -105,10 +105,10 @@ class DefaultFormatBundle(object):
     """Default formatting bundle.
 
     It simplifies the pipeline of formatting common fields, including "img"
-    and "depth_gt". These fields are formatted as follows.
+    and "rsimhe_gt". These fields are formatted as follows.
 
     - img: (1)transpose, (2)to tensor, (3)to DataContainer (stack=True)
-    - depth_gt: (1)unsqueeze dim-0, (2)to tensor, (3)to DataContainer (stack=True)
+    - rsimhe_gt: (1)unsqueeze dim-0, (2)to tensor, (3)to DataContainer (stack=True)
     """
 
     def __call__(self, results):
@@ -128,10 +128,10 @@ class DefaultFormatBundle(object):
                 img = np.expand_dims(img, -1)
             img = np.ascontiguousarray(img.transpose(2, 0, 1))
             results['img'] = DC(to_tensor(img), stack=True)
-        if 'depth_gt' in results:
+        if 'rsimhe_gt' in results:
             # unsqueeze here
-            results['depth_gt'] = DC(
-                to_tensor(results['depth_gt'][None, ...]),
+            results['rsimhe_gt'] = DC(
+                to_tensor(results['rsimhe_gt'][None, ...]),
                 stack=True)
         return results
 
@@ -143,7 +143,7 @@ class Collect(object):
     """Collect data from the loader relevant to the specific task.
 
     This is usually the last stage of the data loader pipeline. Typically keys
-    is set to some subset of "img", "depth_gt".
+    is set to some subset of "img", "rsimhe_gt".
 
     The "img_meta" item is always populated.  The contents of the "img_meta"
     dictionary depends on "meta_keys". By default this includes:

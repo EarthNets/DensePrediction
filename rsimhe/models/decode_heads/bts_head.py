@@ -5,7 +5,7 @@ import torch.nn as nn
 
 import torch.nn.functional as torch_nn_func
 
-from depth.models.builder import HEADS
+from rsimhe.models.builder import HEADS
 from .decode_head import DepthBaseDecodeHead
 
 class atrous_conv(nn.Sequential):
@@ -40,9 +40,9 @@ class upconv(nn.Module):
 
 
 class reduction_1x1(nn.Sequential):
-    def __init__(self, num_in_filters, num_out_filters, max_depth, is_final=False):
+    def __init__(self, num_in_filters, num_out_filters, max_rsimhe, is_final=False):
         super(reduction_1x1, self).__init__()        
-        self.max_depth = max_depth
+        self.max_rsimhe = max_rsimhe
         self.is_final = is_final
         self.sigmoid = nn.Sigmoid()
         self.reduc = torch.nn.Sequential()
@@ -71,7 +71,7 @@ class reduction_1x1(nn.Sequential):
         if not self.is_final:
             theta = self.sigmoid(net[:, 0, :, :]) * math.pi / 3
             phi = self.sigmoid(net[:, 1, :, :]) * math.pi * 2
-            dist = self.sigmoid(net[:, 2, :, :]) * self.max_depth
+            dist = self.sigmoid(net[:, 2, :, :]) * self.max_rsimhe
             n1 = torch.mul(torch.sin(theta), torch.cos(phi)).unsqueeze(1)
             n2 = torch.mul(torch.sin(theta), torch.sin(phi)).unsqueeze(1)
             n3 = torch.cos(theta).unsqueeze(1)
@@ -109,7 +109,7 @@ class BTSHead(DepthBaseDecodeHead):
     """From Big to Small: Multi-Scale Local Planar Guidance for Monocular Depth Estimation
     This head is implemented of `BTS: <https://arxiv.org/abs/1907.10326>`_.
     Args:
-        final_norm (int): Whether apply norm on the final depth prediction.
+        final_norm (int): Whether apply norm on the final rsimhe prediction.
             Used to handle different focal lens in datasets.
             Default: False. (False in NYU, True in KITTI)
         num_features (List): Out channels of decoder layers.
@@ -144,14 +144,14 @@ class BTSHead(DepthBaseDecodeHead):
         self.daspp_24   = atrous_conv(num_features + num_features // 2 + feat_out_channels[2], num_features // 4, 24)
         self.daspp_conv = torch.nn.Sequential(nn.Conv2d(num_features + num_features // 2 + num_features // 4, num_features // 4, 3, 1, 1, bias=False),
                                               nn.ELU())
-        self.reduc8x8   = reduction_1x1(num_features // 4, num_features // 4, self.max_depth)
+        self.reduc8x8   = reduction_1x1(num_features // 4, num_features // 4, self.max_rsimhe)
         self.lpg8x8     = local_planar_guidance(8)
         
         self.upconv3    = upconv(num_features // 4, num_features // 4)
         self.bn3        = nn.BatchNorm2d(num_features // 4, momentum=0.01, affine=True, eps=1.1e-5)
         self.conv3      = torch.nn.Sequential(nn.Conv2d(num_features // 4 + feat_out_channels[1] + 1, num_features // 4, 3, 1, 1, bias=False),
                                               nn.ELU())
-        self.reduc4x4   = reduction_1x1(num_features // 4, num_features // 8, self.max_depth)
+        self.reduc4x4   = reduction_1x1(num_features // 4, num_features // 8, self.max_rsimhe)
         self.lpg4x4     = local_planar_guidance(4)
         
         self.upconv2    = upconv(num_features // 4, num_features // 8)
@@ -159,11 +159,11 @@ class BTSHead(DepthBaseDecodeHead):
         self.conv2      = torch.nn.Sequential(nn.Conv2d(num_features // 8 + feat_out_channels[0] + 1, num_features // 8, 3, 1, 1, bias=False),
                                               nn.ELU())
         
-        self.reduc2x2   = reduction_1x1(num_features // 8, num_features // 16, self.max_depth)
+        self.reduc2x2   = reduction_1x1(num_features // 8, num_features // 16, self.max_rsimhe)
         self.lpg2x2     = local_planar_guidance(2)
         
         self.upconv1    = upconv(num_features // 8, num_features // 16)
-        self.reduc1x1   = reduction_1x1(num_features // 16, num_features // 32, self.max_depth, is_final=True)
+        self.reduc1x1   = reduction_1x1(num_features // 16, num_features // 32, self.max_rsimhe, is_final=True)
         self.conv1      = torch.nn.Sequential(nn.Conv2d(num_features // 16 + 4, num_features // 16, 3, 1, 1, bias=False),
                                               nn.ELU())
 
@@ -203,13 +203,13 @@ class BTSHead(DepthBaseDecodeHead):
         plane_normal_8x8 = torch_nn_func.normalize(plane_normal_8x8, 2, 1)
         plane_dist_8x8 = reduc8x8[:, 3, :, :]
         plane_eq_8x8 = torch.cat([plane_normal_8x8, plane_dist_8x8.unsqueeze(1)], 1)
-        depth_8x8 = self.lpg8x8(plane_eq_8x8, focal)
-        depth_8x8_scaled = depth_8x8.unsqueeze(1) / self.max_depth
-        depth_8x8_scaled_ds = torch_nn_func.interpolate(depth_8x8_scaled, scale_factor=0.25, mode='nearest')
+        rsimhe_8x8 = self.lpg8x8(plane_eq_8x8, focal)
+        rsimhe_8x8_scaled = rsimhe_8x8.unsqueeze(1) / self.max_rsimhe
+        rsimhe_8x8_scaled_ds = torch_nn_func.interpolate(rsimhe_8x8_scaled, scale_factor=0.25, mode='nearest')
         
         upconv3 = self.upconv3(daspp_feat) # H/4
         upconv3 = self.bn3(upconv3)
-        concat3 = torch.cat([upconv3, skip1, depth_8x8_scaled_ds], dim=1)
+        concat3 = torch.cat([upconv3, skip1, rsimhe_8x8_scaled_ds], dim=1)
         iconv3 = self.conv3(concat3)
         
         reduc4x4 = self.reduc4x4(iconv3)
@@ -217,13 +217,13 @@ class BTSHead(DepthBaseDecodeHead):
         plane_normal_4x4 = torch_nn_func.normalize(plane_normal_4x4, 2, 1)
         plane_dist_4x4 = reduc4x4[:, 3, :, :]
         plane_eq_4x4 = torch.cat([plane_normal_4x4, plane_dist_4x4.unsqueeze(1)], 1)
-        depth_4x4 = self.lpg4x4(plane_eq_4x4, focal)
-        depth_4x4_scaled = depth_4x4.unsqueeze(1) / self.max_depth
-        depth_4x4_scaled_ds = torch_nn_func.interpolate(depth_4x4_scaled, scale_factor=0.5, mode='nearest')
+        rsimhe_4x4 = self.lpg4x4(plane_eq_4x4, focal)
+        rsimhe_4x4_scaled = rsimhe_4x4.unsqueeze(1) / self.max_rsimhe
+        rsimhe_4x4_scaled_ds = torch_nn_func.interpolate(rsimhe_4x4_scaled, scale_factor=0.5, mode='nearest')
         
         upconv2 = self.upconv2(iconv3) # H/2
         upconv2 = self.bn2(upconv2)
-        concat2 = torch.cat([upconv2, skip0, depth_4x4_scaled_ds], dim=1)
+        concat2 = torch.cat([upconv2, skip0, rsimhe_4x4_scaled_ds], dim=1)
         iconv2 = self.conv2(concat2)
         
         reduc2x2 = self.reduc2x2(iconv2)
@@ -231,15 +231,15 @@ class BTSHead(DepthBaseDecodeHead):
         plane_normal_2x2 = torch_nn_func.normalize(plane_normal_2x2, 2, 1)
         plane_dist_2x2 = reduc2x2[:, 3, :, :]
         plane_eq_2x2 = torch.cat([plane_normal_2x2, plane_dist_2x2.unsqueeze(1)], 1)
-        depth_2x2 = self.lpg2x2(plane_eq_2x2, focal)
-        depth_2x2_scaled = depth_2x2.unsqueeze(1) / self.max_depth
+        rsimhe_2x2 = self.lpg2x2(plane_eq_2x2, focal)
+        rsimhe_2x2_scaled = rsimhe_2x2.unsqueeze(1) / self.max_rsimhe
         
         upconv1 = self.upconv1(iconv2)
         reduc1x1 = self.reduc1x1(upconv1)
-        concat1 = torch.cat([upconv1, reduc1x1, depth_2x2_scaled, depth_4x4_scaled, depth_8x8_scaled], dim=1)
+        concat1 = torch.cat([upconv1, reduc1x1, rsimhe_2x2_scaled, rsimhe_4x4_scaled, rsimhe_8x8_scaled], dim=1)
         iconv1 = self.conv1(concat1)
 
-        output = self.depth_pred(iconv1)
+        output = self.rsimhe_pred(iconv1)
 
         if self.final_norm:
             output = output * focal.view(-1, 1, 1, 1).float() / 715.0873

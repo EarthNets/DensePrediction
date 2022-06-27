@@ -10,12 +10,12 @@ from mmcv.utils import print_log
 from prettytable import PrettyTable
 from torch.utils.data import Dataset
 
-from depth.core import pre_eval_to_metrics, metrics, eval_metrics
-from depth.utils import get_root_logger
-from depth.datasets.builder import DATASETS
-from depth.datasets.pipelines import Compose
+from rsimhe.core import pre_eval_to_metrics, metrics, eval_metrics
+from rsimhe.utils import get_root_logger
+from rsimhe.datasets.builder import DATASETS
+from rsimhe.datasets.pipelines import Compose
 
-from depth.ops import resize
+from rsimhe.ops import resize
 
 from PIL import Image
 
@@ -28,7 +28,7 @@ def remove_leading_slash(s):
 
 @DATASETS.register_module()
 class NYUDataset(Dataset):
-    """NYU dataset for depth estimation. An example of file structure
+    """NYU dataset for rsimhe estimation. An example of file structure
     is as followed.
     .. code-block:: none
         ├── data
@@ -44,14 +44,14 @@ class NYUDataset(Dataset):
         │   │   │   ├── data_1 ...
     split file format:
     input_image: /kitchen_0028b/rgb_00045.jpg
-    gt_depth:    /kitchen_0028b/sync_depth_00045.png
+    gt_rsimhe:    /kitchen_0028b/sync_rsimhe_00045.png
     focal:       518.8579
     Args:
         pipeline (list[dict]): Processing pipeline
         img_dir (str): Path to image directory
         img_suffix (str): Suffix of images. Default: '.png'
         ann_dir (str, optional): Path to annotation directory. Default: None
-        depth_map_suffix (str): Suffix of depth maps. Default: '.png'
+        rsimhe_map_suffix (str): Suffix of rsimhe maps. Default: '.png'
         split (str, optional): Split txt file. If split is specified, only
             file with suffix in the splits will be loaded. Otherwise, all
             images in img_dir/ann_dir will be loaded. Default: None
@@ -65,21 +65,21 @@ class NYUDataset(Dataset):
                  split=None,
                  data_root=None,
                  test_mode=False,
-                 depth_scale=1000,
+                 rsimhe_scale=1000,
                  garg_crop=False,
                  eigen_crop=True,
-                 min_depth=1e-3,
-                 max_depth=10):
+                 min_rsimhe=1e-3,
+                 max_rsimhe=10):
 
         self.pipeline = Compose(pipeline)
         self.split = split
         self.data_root = data_root
         self.test_mode = test_mode
-        self.depth_scale = depth_scale
+        self.rsimhe_scale = rsimhe_scale
         self.garg_crop = garg_crop
         self.eigen_crop = eigen_crop
-        self.min_depth = min_depth
-        self.max_depth = max_depth
+        self.min_rsimhe = min_rsimhe
+        self.max_rsimhe = max_rsimhe
         
         # join paths if data_root is specified
         if self.data_root is not None:
@@ -103,17 +103,17 @@ class NYUDataset(Dataset):
         Returns:
             list[dict]: All image info of dataset.
         """
-        self.invalid_depth_num = 0
+        self.invalid_rsimhe_num = 0
         img_infos = []
         if split is not None:
             with open(split) as f:
                 for line in f:
                     img_info = dict()
-                    depth_map = line.strip().split(" ")[1]
-                    if depth_map == 'None':
-                        self.invalid_depth_num += 1
+                    rsimhe_map = line.strip().split(" ")[1]
+                    if rsimhe_map == 'None':
+                        self.invalid_rsimhe_num += 1
                         continue
-                    img_info['ann'] = dict(depth_map=osp.join(data_root, remove_leading_slash(depth_map)))
+                    img_info['ann'] = dict(rsimhe_map=osp.join(data_root, remove_leading_slash(rsimhe_map)))
                     img_name = line.strip().split(" ")[0]
                     img_info['filename'] = osp.join(data_root, remove_leading_slash(img_name))
                     img_infos.append(img_info)
@@ -122,7 +122,7 @@ class NYUDataset(Dataset):
 
         # github issue:: make sure the same order
         img_infos = sorted(img_infos, key=lambda x: x['filename'])
-        print_log(f'Loaded {len(img_infos)} images. Totally {self.invalid_depth_num} invalid pairs are filtered', logger=get_root_logger())
+        print_log(f'Loaded {len(img_infos)} images. Totally {self.invalid_rsimhe_num} invalid pairs are filtered', logger=get_root_logger())
         return img_infos
     
     def get_ann_info(self, idx):
@@ -137,8 +137,8 @@ class NYUDataset(Dataset):
 
     def pre_pipeline(self, results):
         """Prepare results dict for pipeline."""
-        results['depth_fields'] = []
-        results['depth_scale'] = self.depth_scale
+        results['rsimhe_fields'] = []
+        results['rsimhe_scale'] = self.rsimhe_scale
 
         # train/test share the same cam param
         results['cam_intrinsic'] = \
@@ -193,19 +193,19 @@ class NYUDataset(Dataset):
         """Place holder to format result to dataset specific output."""
         raise NotImplementedError
 
-    def get_gt_depth_maps(self):
-        """Get ground truth depth maps for evaluation."""
+    def get_gt_rsimhe_maps(self):
+        """Get ground truth rsimhe maps for evaluation."""
 
         for img_info in self.img_infos:
-            depth_map = img_info['ann']['depth_map']
-            depth_map_gt = np.asarray(Image.open(depth_map), dtype=np.float32) / self.depth_scale
-            yield depth_map_gt
+            rsimhe_map = img_info['ann']['rsimhe_map']
+            rsimhe_map_gt = np.asarray(Image.open(rsimhe_map), dtype=np.float32) / self.rsimhe_scale
+            yield rsimhe_map_gt
 
-    def eval_mask(self, depth_gt):
-        depth_gt = np.squeeze(depth_gt)
-        valid_mask = np.logical_and(depth_gt > self.min_depth, depth_gt < self.max_depth)
+    def eval_mask(self, rsimhe_gt):
+        rsimhe_gt = np.squeeze(rsimhe_gt)
+        valid_mask = np.logical_and(rsimhe_gt > self.min_rsimhe, rsimhe_gt < self.max_rsimhe)
         if self.garg_crop or self.eigen_crop:
-            gt_height, gt_width = depth_gt.shape
+            gt_height, gt_width = rsimhe_gt.shape
             eval_mask = np.zeros(valid_mask.shape)
 
             if self.garg_crop:
@@ -223,7 +223,7 @@ class NYUDataset(Dataset):
     def pre_eval(self, preds, indices):
         """Collect eval result from each iteration.
         Args:
-            preds (list[torch.Tensor] | torch.Tensor): the depth estimation, shape (N, H, W).
+            preds (list[torch.Tensor] | torch.Tensor): the rsimhe estimation, shape (N, H, W).
             indices (list[int] | int): the prediction related ground truth
                 indices.
         Returns:
@@ -240,14 +240,14 @@ class NYUDataset(Dataset):
         pre_eval_preds = []
 
         for i, (pred, index) in enumerate(zip(preds, indices)):
-            depth_map = self.img_infos[index]['ann']['depth_map']
+            rsimhe_map = self.img_infos[index]['ann']['rsimhe_map']
 
-            depth_map_gt = np.asarray(Image.open(depth_map), dtype=np.float32) / self.depth_scale
-            depth_map_gt = np.expand_dims(depth_map_gt, axis=0)
-            # depth_map_gt = self.eval_nyu_crop(depth_map_gt)
-            valid_mask = self.eval_mask(depth_map_gt)
+            rsimhe_map_gt = np.asarray(Image.open(rsimhe_map), dtype=np.float32) / self.rsimhe_scale
+            rsimhe_map_gt = np.expand_dims(rsimhe_map_gt, axis=0)
+            # rsimhe_map_gt = self.eval_nyu_crop(rsimhe_map_gt)
+            valid_mask = self.eval_mask(rsimhe_map_gt)
             
-            eval = metrics(depth_map_gt[valid_mask], pred[valid_mask], self.min_depth, self.max_depth)
+            eval = metrics(rsimhe_map_gt[valid_mask], pred[valid_mask], self.min_rsimhe, self.max_rsimhe)
             pre_eval_results.append(eval)
 
             # save prediction results
@@ -259,7 +259,7 @@ class NYUDataset(Dataset):
         """Evaluate the dataset.
         Args:
             results (list[tuple[torch.Tensor]] | list[str]): per image pre_eval
-                 results or predict depth map for computing evaluation
+                 results or predict rsimhe map for computing evaluation
                  metric.
             logger (logging.Logger | None | str): Logger used for printing
                 related information during evaluation. Default: None.
@@ -271,9 +271,9 @@ class NYUDataset(Dataset):
         # test a list of files
         if mmcv.is_list_of(results, np.ndarray) or mmcv.is_list_of(
                 results, str):
-            gt_depth_maps = self.get_gt_depth_maps()
+            gt_rsimhe_maps = self.get_gt_rsimhe_maps()
             ret_metrics = eval_metrics(
-                gt_depth_maps,
+                gt_rsimhe_maps,
                 results)
         # test a list of pre_eval_results
         else:

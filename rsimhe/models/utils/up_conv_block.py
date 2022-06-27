@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 from mmcv.cnn import ConvModule, build_upsample_layer, UPSAMPLE_LAYERS
-from depth.ops import Upsample
+from rsimhe.ops import Upsample
 import torch.utils.checkpoint as cp
 
 class BasicConvBlock(nn.Module):

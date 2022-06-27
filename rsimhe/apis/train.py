@@ -7,9 +7,9 @@ import torch
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import build_optimizer, build_runner
 
-from depth.core import DistEvalHook, EvalHook
-from depth.datasets import build_dataloader, build_dataset
-from depth.utils import get_root_logger
+from rsimhe.core import DistEvalHook, EvalHook
+from rsimhe.datasets import build_dataloader, build_dataset
+from rsimhe.utils import get_root_logger
 
 
 def set_random_seed(seed, deterministic=False):
@@ -31,14 +31,14 @@ def set_random_seed(seed, deterministic=False):
         torch.backends.cudnn.benchmark = False
 
 
-def train_depther(model,
+def train_rsimheer(model,
                     dataset,
                     cfg,
                     distributed=False,
                     validate=False,
                     timestamp=None,
                     meta=None):
-    """Launch depther training."""
+    """Launch rsimheer training."""
     logger = get_root_logger(cfg.log_level)
 
     # prepare data loaders

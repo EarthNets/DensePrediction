@@ -5,12 +5,12 @@ import torch
 from mmcv.parallel import collate, scatter
 from mmcv.runner import load_checkpoint
 
-from depth.datasets.pipelines import Compose
-from depth.models import build_depther
+from rsimhe.datasets.pipelines import Compose
+from rsimhe.models import build_rsimheer
 
 
-def init_depther(config, checkpoint=None, device='cuda:0'):
-    """Initialize a depther from config file.
+def init_rsimheer(config, checkpoint=None, device='cuda:0'):
+    """Initialize a rsimheer from config file.
 
     Args:
         config (str or :obj:`mmcv.Config`): Config file path or the config
@@ -20,7 +20,7 @@ def init_depther(config, checkpoint=None, device='cuda:0'):
         device (str, optional) CPU/CUDA device option. Default 'cuda:0'.
             Use 'cpu' for loading model on CPU.
     Returns:
-        nn.Module: The constructed depther.
+        nn.Module: The constructed rsimheer.
     """
     if isinstance(config, str):
         config = mmcv.Config.fromfile(config)
@@ -29,7 +29,7 @@ def init_depther(config, checkpoint=None, device='cuda:0'):
                         'but got {}'.format(type(config)))
     config.model.pretrained = None
     config.model.train_cfg = None
-    model = build_depther(config.model, test_cfg=config.get('test_cfg'))
+    model = build_rsimheer(config.model, test_cfg=config.get('test_cfg'))
     if checkpoint is not None:
         checkpoint = load_checkpoint(model, checkpoint, map_location='cpu')
         model.CLASSES = checkpoint['meta']['CLASSES']
@@ -67,16 +67,16 @@ class LoadImage:
         return results
 
 
-def inference_depther(model, img):
-    """Inference image(s) with the depther.
+def inference_rsimheer(model, img):
+    """Inference image(s) with the rsimheer.
 
     Args:
-        model (nn.Module): The loaded depther.
+        model (nn.Module): The loaded rsimheer.
         imgs (str/ndarray or list[str/ndarray]): Either image files or loaded
             images.
 
     Returns:
-        (list[Tensor]): The depth estimation result.
+        (list[Tensor]): The rsimhe estimation result.
     """
     cfg = model.cfg
     device = next(model.parameters()).device  # model device

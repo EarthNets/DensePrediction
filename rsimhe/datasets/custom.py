@@ -10,12 +10,12 @@ from mmcv.utils import print_log
 from prettytable import PrettyTable
 from torch.utils.data import Dataset
 
-from depth.core import pre_eval_to_metrics, metrics, eval_metrics
-from depth.utils import get_root_logger
-from depth.datasets.builder import DATASETS
-from depth.datasets.pipelines import Compose
+from rsimhe.core import pre_eval_to_metrics, metrics, eval_metrics
+from rsimhe.utils import get_root_logger
+from rsimhe.datasets.builder import DATASETS
+from rsimhe.datasets.pipelines import Compose
 
-from depth.ops import resize
+from rsimhe.ops import resize
 
 from PIL import Image
 
@@ -25,7 +25,7 @@ import os
 
 @DATASETS.register_module()
 class CustomDepthDataset(Dataset):
-    """Custom dataset for supervised monocular depth esitmation. 
+    """Custom dataset for supervised monocular rsimhe esitmation. 
     An example of file structure. is as followed.
     .. code-block:: none
         ├── data
@@ -35,7 +35,7 @@ class CustomDepthDataset(Dataset):
         │   │   │   │   ├── 0.xxx
         │   │   │   │   ├── 1.xxx
         │   │   │   │   ├── 2.xxx
-        │   │   │   ├── depth
+        │   │   │   ├── rsimhe
         │   │   │   │   ├── 0.xxx
         │   │   │   │   ├── 1.xxx
         │   │   │   │   ├── 2.xxx
@@ -48,35 +48,35 @@ class CustomDepthDataset(Dataset):
         img_dir (str): Path to image directory
         data_root (str, optional): Data root for img_dir.
         test_mode (bool): test_mode=True
-        min_depth=1e-3: Default min depth value.
-        max_depth=10: Default max depth value.
+        min_rsimhe=1e-3: Default min rsimhe value.
+        max_rsimhe=10: Default max rsimhe value.
     """
 
     def __init__(self,
                  pipeline,
                  data_root,
                  test_mode=True,
-                 min_depth=1e-3,
-                 max_depth=10,
-                 depth_scale=1):
+                 min_rsimhe=1e-3,
+                 max_rsimhe=10,
+                 rsimhe_scale=1):
 
         self.pipeline = Compose(pipeline)
         self.img_path = os.path.join(data_root, 'rgb')
-        self.depth_path = os.path.join(data_root, 'depth')
+        self.rsimhe_path = os.path.join(data_root, 'rsimhe')
         self.test_mode = test_mode
-        self.min_depth = min_depth
-        self.max_depth = max_depth
-        self.depth_scale = depth_scale
+        self.min_rsimhe = min_rsimhe
+        self.max_rsimhe = max_rsimhe
+        self.rsimhe_scale = rsimhe_scale
 
         # load annotations
-        self.img_infos = self.load_annotations(self.img_path, self.depth_path)
+        self.img_infos = self.load_annotations(self.img_path, self.rsimhe_path)
         
 
     def __len__(self):
         """Total number of samples of data."""
         return len(self.img_infos)
 
-    def load_annotations(self, img_dir, depth_dir):
+    def load_annotations(self, img_dir, rsimhe_dir):
         """Load annotation from directory.
         Args:
             img_dir (str): Path to image directory. Load all the images under the root.
@@ -90,13 +90,13 @@ class CustomDepthDataset(Dataset):
         imgs.sort()
 
         if self.test_mode is not True:
-            depths = os.listdir(depth_dir)
-            depths.sort()
+            rsimhes = os.listdir(rsimhe_dir)
+            rsimhes.sort()
 
-            for img, depth in zip(imgs, depths):
+            for img, rsimhe in zip(imgs, rsimhes):
                 img_info = dict()
                 img_info['filename'] = img
-                img_info['ann'] = dict(depth_map=depth)
+                img_info['ann'] = dict(rsimhe_map=rsimhe)
                 img_infos.append(img_info)
         
         else:
@@ -114,10 +114,10 @@ class CustomDepthDataset(Dataset):
 
     def pre_pipeline(self, results):
         """Prepare results dict for pipeline."""
-        results['depth_fields'] = []
+        results['rsimhe_fields'] = []
         results['img_prefix'] = self.img_path
-        results['depth_prefix'] = self.depth_path
-        results['depth_scale'] = self.depth_scale
+        results['rsimhe_prefix'] = self.rsimhe_path
+        results['rsimhe_scale'] = self.rsimhe_scale
 
     def __getitem__(self, idx):
         """Get training/test data after pipeline.
@@ -174,7 +174,7 @@ class CustomDepthDataset(Dataset):
     # waiting to be done
     def format_results(self, results, imgfile_prefix=None, indices=None, **kwargs):
         """Place holder to format result to dataset specific output."""
-        results[0] = (results[0] * self.depth_scale) # Do not convert to np.uint16 for ensembling. # .astype(np.uint16)
+        results[0] = (results[0] * self.rsimhe_scale) # Do not convert to np.uint16 for ensembling. # .astype(np.uint16)
         return results
 
     # design your own evaluation pipeline

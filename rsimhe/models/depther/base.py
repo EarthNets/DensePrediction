@@ -9,11 +9,11 @@ import torch.distributed as dist
 from mmcv.runner import BaseModule, auto_fp16
 import matplotlib.pyplot as plt
 import matplotlib
-from depth.utils import colorize
+from rsimhe.utils import colorize
 
 
 class BaseDepther(BaseModule, metaclass=ABCMeta):
-    """Base class for depther."""
+    """Base class for rsimheer."""
 
     def __init__(self, init_cfg=None):
         super(BaseDepther, self).__init__(init_cfg)
@@ -21,18 +21,18 @@ class BaseDepther(BaseModule, metaclass=ABCMeta):
 
     @property
     def with_neck(self):
-        """bool: whether the depther has neck"""
+        """bool: whether the rsimheer has neck"""
         return hasattr(self, 'neck') and self.neck is not None
 
     @property
     def with_auxiliary_head(self):
-        """bool: whether the depther has auxiliary head"""
+        """bool: whether the rsimheer has auxiliary head"""
         return hasattr(self,
                        'auxiliary_head') and self.auxiliary_head is not None
 
     @property
     def with_decode_head(self):
-        """bool: whether the depther has decode head"""
+        """bool: whether the rsimheer has decode head"""
         return hasattr(self, 'decode_head') and self.decode_head is not None
 
     @abstractmethod
@@ -43,7 +43,7 @@ class BaseDepther(BaseModule, metaclass=ABCMeta):
     @abstractmethod
     def encode_decode(self, img, img_metas):
         """Placeholder for encode images with backbone and decode into a
-        semantic depth map of the same size as input."""
+        semantic rsimhe map of the same size as input."""
         pass
 
     @abstractmethod
@@ -215,7 +215,7 @@ class BaseDepther(BaseModule, metaclass=ABCMeta):
 
         Args:
             img (str or Tensor): The image to be displayed.
-            result (Tensor): The depth estimation results.
+            result (Tensor): The rsimhe estimation results.
             win_name (str): The window name.
             wait_time (int): Value of waitKey param.
                 Default: 0.
@@ -228,20 +228,20 @@ class BaseDepther(BaseModule, metaclass=ABCMeta):
         """
         img = mmcv.imread(img)
         img = img.copy()
-        depth = result[0]
+        rsimhe = result[0]
 
         if show:
             mmcv.imshow(img, win_name, wait_time)
 
         if format_only:
             if out_file is not None:
-                np.save(out_file, depth) # only save the value.
+                np.save(out_file, rsimhe) # only save the value.
         else:
             if out_file is not None:
-                depth = colorize(depth, vmin=self.decode_head.min_depth, vmax=self.decode_head.max_depth)
-                mmcv.imwrite(depth.squeeze(), out_file)
+                rsimhe = colorize(rsimhe, vmin=self.decode_head.min_rsimhe, vmax=self.decode_head.max_rsimhe)
+                mmcv.imwrite(rsimhe.squeeze(), out_file)
 
         if not (show or out_file):
             warnings.warn('show==False and out_file is not specified, only '
-                          'result depth will be returned')
-            return depth
+                          'result rsimhe will be returned')
+            return rsimhe

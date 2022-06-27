@@ -5,10 +5,10 @@ from mmcv.cnn import ConvModule
 from torch.nn.functional import embedding
 from torch.nn.modules import conv
 
-from depth.models.builder import HEADS
+from rsimhe.models.builder import HEADS
 from .decode_head import DepthBaseDecodeHead
 import torch.nn.functional as F
-from depth.models.utils import UpConvBlock, BasicConvBlock
+from rsimhe.models.utils import UpConvBlock, BasicConvBlock
 
 class UpSample(nn.Sequential):
     '''Fusion module
@@ -130,5 +130,5 @@ class DenseDepthHead(DepthBaseDecodeHead):
                     temp_feat = self.conv_list[index](up_feat, skip_feat)
                     temp_feat_list.append(temp_feat)
 
-        output = self.depth_pred(temp_feat_list[-1])
+        output = self.rsimhe_pred(temp_feat_list[-1])
         return output

@@ -30,8 +30,8 @@ def build_loss(cfg):
     """Build loss."""
     return LOSSES.build(cfg)
 
-def build_depther(cfg, train_cfg=None, test_cfg=None):
-    """Build depther."""
+def build_rsimheer(cfg, train_cfg=None, test_cfg=None):
+    """Build rsimheer."""
     if train_cfg is not None or test_cfg is not None:
         warnings.warn(
             'train_cfg and test_cfg is deprecated, '

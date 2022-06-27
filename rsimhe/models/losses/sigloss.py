@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-from depth.models.builder import LOSSES
+from rsimhe.models.builder import LOSSES
 
 @LOSSES.register_module()
 class SigLoss(nn.Module):
@@ -16,13 +16,13 @@ class SigLoss(nn.Module):
     def __init__(self,
                  valid_mask=True,
                  loss_weight=1.0,
-                 max_depth=None,
+                 max_rsimhe=None,
                  warm_up=False,
                  warm_iter=100):
         super(SigLoss, self).__init__()
         self.valid_mask = valid_mask
         self.loss_weight = loss_weight
-        self.max_depth = max_depth
+        self.max_rsimhe = max_rsimhe
 
         self.eps = 0.1 # avoid grad explode
 
@@ -34,8 +34,8 @@ class SigLoss(nn.Module):
     def sigloss(self, input, target):
         if self.valid_mask:
             valid_mask = target > 0
-            if self.max_depth is not None:
-                valid_mask = torch.logical_and(target > 0, target <= self.max_depth)
+            if self.max_rsimhe is not None:
+                valid_mask = torch.logical_and(target > 0, target <= self.max_rsimhe)
             input = input[valid_mask]
             target = target[valid_mask]
         
@@ -51,13 +51,13 @@ class SigLoss(nn.Module):
         return torch.sqrt(Dg)
 
     def forward(self,
-                depth_pred,
-                depth_gt,
+                rsimhe_pred,
+                rsimhe_gt,
                 **kwargs):
         """Forward function."""
         
-        loss_depth = self.loss_weight * self.sigloss(
-            depth_pred,
-            depth_gt,
+        loss_rsimhe = self.loss_weight * self.sigloss(
+            rsimhe_pred,
+            rsimhe_gt,
             )
-        return loss_depth
+        return loss_rsimhe

@@ -2,8 +2,8 @@
 import torch.nn as nn
 from mmcv.cnn import ConvModule, xavier_init
 
-from depth.ops import resize
-from depth.models.builder import NECKS
+from rsimhe.ops import resize
+from rsimhe.models.builder import NECKS
 
 
 @NECKS.register_module()
