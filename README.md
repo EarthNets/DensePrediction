@@ -1,9 +1,9 @@
-# Monocular-Depth-Estimation-Toolbox
+# Monocular-Height-Estimation-Toolbox
 ## Introduction
 
-Monocular-Depth-Estimation-Toolbox is an open source monocular depth estimation toolbox based on PyTorch and [MMSegmentation](https://github.com/open-mmlab/mmsegmentation) v0.16.0.
+Monocular-Height-Estimation-Toolbox is an open source monocular height estimation toolbox based on PyTorch and [MMSegmentation](https://github.com/open-mmlab/mmsegmentation) v0.16.0.
 
-It aims to benchmark MonoDepth methods and provides effective supports for evaluating and visualizing results.
+It aims to benchmark monocular height estimation methods and provides effective supports for evaluating and visualizing results.
 
 <div align=center><img width="550" height="150" src="resources/teaser.gif"/></div>
 
@@ -12,15 +12,6 @@ It aims to benchmark MonoDepth methods and provides effective supports for evalu
 - **Unified benchmark**
   
   Provide a unified benchmark toolbox for various depth estimation methods.
-- **Modular design**
-  
-  Depth estimation frameworks are decomposed into different components. One can easily construct a customized framework by combining different modules.
-- **Support of multiple methods out of box**
-  
-  I would like to reproduce some of the most excellent depth estimation methods based on this toolbox.
-- **High efficiency**
-  
-  It seems that there are few depth estimation benchmarks, so I start this project and hope it is helpful for research.
 
 Thanks to MMSeg, we own these major features. :blush:
 
