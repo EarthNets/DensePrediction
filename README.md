@@ -5,7 +5,7 @@ Monocular-Height-Estimation-Toolbox is an open source monocular height estimatio
 
 It aims to benchmark monocular height estimation methods and provides effective supports for evaluating and visualizing results.
 
-<div align=center><img width="1050" height="250" src="resources/vis.png"/></div>
+<div align=center><img width="850" height="350" src="resources/vis.png"/></div>
 
 
 ### Major features
