@@ -83,8 +83,5 @@ If you find this toolbox helpful for your projects or research, consider citing 
 }
 ```
 
-## Changelog
-- **Jun. 5, 2022**: Add support for custom dataset training. Add a warmup interface for sigloss to help convergence as discussed in Issue [#20](https://github.com/zhyever/Monocular-Depth-Estimation-Toolbox/issues/20). Enhance the DPT support and fix bugs in provided pre-trained models as reported in Issue [#23](https://github.com/zhyever/Monocular-Depth-Estimation-Toolbox/issues/23). 
-- **Apr. 16, 2022**: Finish most of docs and provide all pre-trained parameters. Release codes about BTS, Adabins, DPT, SimIPU, and DepthFormer. Support KITTI, NYU-v2, SUN RGB-D(eval), and CityScapes.
-
+## Acknowledgment
 - The code in this repo are based on [Depth Estimation](https://github.com/zhyever/Monocular-Depth-Estimation-Toolbox.git) and [MMSegmentation](https://github.com/open-mmlab/mmsegmentation.git).
