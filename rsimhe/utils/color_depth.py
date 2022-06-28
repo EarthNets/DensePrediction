@@ -1,6 +1,6 @@
 import matplotlib
 
-# color the rsimhe, kitti magma_r, nyu jet
+# color the depth, kitti magma_r, nyu jet
 def colorize(value, cmap='magma_r', vmin=None, vmax=None):
     # TODO: remove hacks
 

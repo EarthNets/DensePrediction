@@ -312,7 +312,7 @@ class ResNet(BaseModule):
     """ResNet backbone.
 
     Args:
-        rsimhe (int): Depth of resnet, from {18, 34, 50, 101, 152}.
+        depth (int): Depth of resnet, from {18, 34, 50, 101, 152}.
         in_channels (int): Number of input image channels. Default: 3.
         stem_channels (int): Number of stem channels. Default: 64.
         base_channels (int): Number of base channels of res layer. Default: 64.
@@ -370,7 +370,7 @@ class ResNet(BaseModule):
     Example:
         >>> from mmseg.models import ResNet
         >>> import torch
-        >>> self = ResNet(rsimhe=18)
+        >>> self = ResNet(depth=18)
         >>> self.eval()
         >>> inputs = torch.rand(1, 3, 32, 32)
         >>> level_outputs = self.forward(inputs)
@@ -391,7 +391,7 @@ class ResNet(BaseModule):
     }
 
     def __init__(self,
-                 rsimhe,
+                 depth,
                  in_channels=3,
                  stem_channels=64,
                  base_channels=64,
@@ -416,8 +416,8 @@ class ResNet(BaseModule):
                  pretrained=None,
                  init_cfg=None):
         super(ResNet, self).__init__(init_cfg)
-        if rsimhe not in self.arch_settings:
-            raise KeyError(f'invalid rsimhe {rsimhe} for resnet')
+        if depth not in self.arch_settings:
+            raise KeyError(f'invalid depth {depth} for resnet')
 
         self.pretrained = pretrained
         self.zero_init_residual = zero_init_residual
@@ -437,7 +437,7 @@ class ResNet(BaseModule):
                         val=1,
                         layer=['_BatchNorm', 'GroupNorm'])
                 ]
-                block = self.arch_settings[rsimhe][0]
+                block = self.arch_settings[depth][0]
                 if self.zero_init_residual:
                     if block is BasicBlock:
                         block_init_cfg = dict(
@@ -452,7 +452,7 @@ class ResNet(BaseModule):
         else:
             raise TypeError('pretrained must be a str or None')
 
-        self.rsimhe = rsimhe
+        self.depth = depth
         self.stem_channels = stem_channels
         self.base_channels = base_channels
         self.num_stages = num_stages
@@ -477,7 +477,7 @@ class ResNet(BaseModule):
         self.plugins = plugins
         self.multi_grid = multi_grid
         self.contract_dilation = contract_dilation
-        self.block, stage_blocks = self.arch_settings[rsimhe]
+        self.block, stage_blocks = self.arch_settings[depth]
         self.stage_blocks = stage_blocks[:num_stages]
         self.inplanes = stem_channels
 
@@ -546,7 +546,7 @@ class ResNet(BaseModule):
         ...          stages=(True, True, True, True),
         ...          position='after_conv3')
         ... ]
-        >>> self = ResNet(rsimhe=18)
+        >>> self = ResNet(depth=18)
         >>> stage_plugins = self.make_stage_plugins(plugins, 0)
         >>> assert len(stage_plugins) == 3
 

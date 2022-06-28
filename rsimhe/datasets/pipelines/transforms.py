@@ -52,13 +52,13 @@ class Normalize(object):
 
 @PIPELINES.register_module()
 class NYUCrop(object):
-    """NYU standard krop when training monocular rsimhe estimation on NYU dataset.
+    """NYU standard krop when training monocular depth estimation on NYU dataset.
 
     Args:
-        rsimhe (bool): Whether apply NYUCrop on rsimhe map. Default: False.
+        depth (bool): Whether apply NYUCrop on depth map. Default: False.
     """
-    def __init__(self, rsimhe=False):
-        self.rsimhe = rsimhe
+    def __init__(self, depth=False):
+        self.depth = depth
 
     def __call__(self, results):
         """Call function to apply NYUCrop on images.
@@ -70,10 +70,10 @@ class NYUCrop(object):
             dict: Croped results.
         """
 
-        if self.rsimhe:
-            rsimhe_cropped = results["rsimhe_gt"][45:472, 43:608]
-            results["rsimhe_gt"] = rsimhe_cropped
-            results["rsimhe_shape"] = results["rsimhe_gt"].shape
+        if self.depth:
+            depth_cropped = results["depth_gt"][45:472, 43:608]
+            results["depth_gt"] = depth_cropped
+            results["depth_shape"] = results["depth_gt"].shape
 
         img_cropped = results["img"][45:472, 43:608, :]
         results["img"] = img_cropped
@@ -87,16 +87,16 @@ class NYUCrop(object):
 
 @PIPELINES.register_module()
 class KBCrop(object):
-    """KB standard krop when training monocular rsimhe estimation on KITTI dataset.
+    """KB standard krop when training monocular depth estimation on KITTI dataset.
 
     Args:
-        rsimhe (bool): Whether apply KBCrop on rsimhe map. Default: False.
+        depth (bool): Whether apply KBCrop on depth map. Default: False.
         height (int): Height of input images. Default: 352.
         width (int): Width of input images. Default: 1216.
 
     """
-    def __init__(self, rsimhe=False, height=352, width=1216):
-        self.rsimhe = rsimhe
+    def __init__(self, depth=False, height=352, width=1216):
+        self.depth = depth
         self.height = height
         self.width = width
 
@@ -115,13 +115,13 @@ class KBCrop(object):
         top_margin = int(height - self.height)
         left_margin = int((width - self.width) / 2)
 
-        if self.rsimhe:
-            rsimhe_cropped = results["rsimhe_gt"][top_margin:top_margin +
+        if self.depth:
+            depth_cropped = results["depth_gt"][top_margin:top_margin +
                                                 self.height,
                                                 left_margin:left_margin +
                                                 self.width]
-            results["rsimhe_gt"] = rsimhe_cropped
-            results["rsimhe_shape"] = results["rsimhe_gt"].shape
+            results["depth_gt"] = depth_cropped
+            results["depth_shape"] = results["depth_gt"].shape
 
         img_cropped = results["img"][top_margin:top_margin + self.height,
                                      left_margin:left_margin + self.width, :]
@@ -137,7 +137,7 @@ class KBCrop(object):
 
 @PIPELINES.register_module()
 class RandomRotate(object):
-    """Rotate the image & rsimhe.
+    """Rotate the image & depth.
 
     Args:
         prob (float): The rotation probability.
@@ -145,7 +145,7 @@ class RandomRotate(object):
             degree is a number instead of tuple like (min, max),
             the range of degree will be (``-degree``, ``+degree``)
         pad_val (float, optional): Padding value of image. Default: 0.
-        rsimhe_pad_val (float, optional): Padding value of rsimhe map.
+        depth_pad_val (float, optional): Padding value of depth map.
             Default: 255.
         center (tuple[float], optional): Center point (w, h) of the rotation in
             the source image. If not specified, the center of the image will be
@@ -157,7 +157,7 @@ class RandomRotate(object):
                  prob,
                  degree,
                  pad_val=0,
-                 rsimhe_pad_val=0,
+                 depth_pad_val=0,
                  center=None,
                  auto_bound=False):
         self.prob = prob
@@ -170,12 +170,12 @@ class RandomRotate(object):
         assert len(self.degree) == 2, f'degree {self.degree} should be a ' \
                                       f'tuple of (min, max)'
         self.pal_val = pad_val
-        self.rsimhe_pad_val = rsimhe_pad_val
+        self.depth_pad_val = depth_pad_val
         self.center = center
         self.auto_bound = auto_bound
 
     def __call__(self, results):
-        """Call function to rotate image, rsimhe estimation maps.
+        """Call function to rotate image, depth estimation maps.
 
         Args:
             results (dict): Result dict from loading pipeline.
@@ -194,12 +194,12 @@ class RandomRotate(object):
                                            center=self.center,
                                            auto_bound=self.auto_bound)
 
-            # rotate rsimhe
-            for key in results.get('rsimhe_fields', []):
+            # rotate depth
+            for key in results.get('depth_fields', []):
                 results[key] = mmcv.imrotate(
                     results[key],
                     angle=degree,
-                    border_value=self.rsimhe_pad_val,
+                    border_value=self.depth_pad_val,
                     center=self.center,
                     auto_bound=self.auto_bound,
                     interpolation='nearest')
@@ -211,7 +211,7 @@ class RandomRotate(object):
         repr_str += f'(prob={self.prob}, ' \
                     f'degree={self.degree}, ' \
                     f'pad_val={self.pal_val}, ' \
-                    f'rsimhe_pad_val={self.rsimhe_pad_val}, ' \
+                    f'depth_pad_val={self.depth_pad_val}, ' \
                     f'center={self.center}, ' \
                     f'auto_bound={self.auto_bound})'
         return repr_str
@@ -219,7 +219,7 @@ class RandomRotate(object):
 
 @PIPELINES.register_module()
 class RandomFlip(object):
-    """Flip the image & rsimhe.
+    """Flip the image & depth.
 
     If the input dict contains the key "flip", then the flag will be used,
     otherwise it will be randomly decided by a ratio specified in the init
@@ -239,7 +239,7 @@ class RandomFlip(object):
         assert direction in ['horizontal', 'vertical']
 
     def __call__(self, results):
-        """Call function to flip bounding boxes, masks, rsimhe estimation
+        """Call function to flip bounding boxes, masks, depth estimation
         maps.
 
         Args:
@@ -260,8 +260,8 @@ class RandomFlip(object):
             results['img'] = mmcv.imflip(results['img'],
                                          direction=results['flip_direction'])
 
-            # flip rsimhe
-            for key in results.get('rsimhe_fields', []):
+            # flip depth
+            for key in results.get('depth_fields', []):
                 # use copy() to make numpy stride positive
                 results[key] = mmcv.imflip(
                     results[key], direction=results['flip_direction']).copy()
@@ -274,7 +274,7 @@ class RandomFlip(object):
 
 @PIPELINES.register_module()
 class RandomCrop(object):
-    """Random crop the image & rsimhe.
+    """Random crop the image & depth.
 
     Args:
         crop_size (tuple): Expected size after cropping, (h, w).
@@ -301,7 +301,7 @@ class RandomCrop(object):
         return img
 
     def __call__(self, results):
-        """Call function to randomly crop images, rsimhe estimation maps.
+        """Call function to randomly crop images, depth estimation maps.
 
         Args:
             results (dict): Result dict from loading pipeline.
@@ -320,11 +320,11 @@ class RandomCrop(object):
         results['img'] = img
         results['img_shape'] = img_shape
 
-        # crop rsimhe
-        for key in results.get('rsimhe_fields', []):
+        # crop depth
+        for key in results.get('depth_fields', []):
             results[key] = self.crop(results[key], crop_bbox)
             
-        results["rsimhe_shape"] = img_shape
+        results["depth_shape"] = img_shape
 
         return results
 
@@ -334,7 +334,7 @@ class RandomCrop(object):
 
 @PIPELINES.register_module()
 class ColorAug(object):
-    """Color augmentation used in rsimhe estimation
+    """Color augmentation used in depth estimation
 
     Args:
         prob (float, optional): The color augmentation probability. Default: None.
@@ -398,7 +398,7 @@ class ColorAug(object):
 
 @PIPELINES.register_module()
 class Resize(object):
-    """Resize images & rsimhe.
+    """Resize images & depth.
 
     This transform resizes the input image to some scale. If the input dict
     contains the key "scale", then the scale in the input dict is used,
@@ -588,21 +588,21 @@ class Resize(object):
         results['scale_factor'] = scale_factor
         results['keep_ratio'] = self.keep_ratio
 
-    def _resize_rsimhe(self, results):
-        """Resize rsimhe estimation map with ``results['scale']``."""
-        for key in results.get('rsimhe_fields', []):
+    def _resize_depth(self, results):
+        """Resize depth estimation map with ``results['scale']``."""
+        for key in results.get('depth_fields', []):
             if self.keep_ratio:
-                gt_rsimhe = mmcv.imrescale(results[key],
+                gt_depth = mmcv.imrescale(results[key],
                                           results['scale'],
                                           interpolation='nearest')
             else:
-                gt_rsimhe = mmcv.imresize(results[key],
+                gt_depth = mmcv.imresize(results[key],
                                          results['scale'],
                                          interpolation='nearest')
-            results[key] = gt_rsimhe
+            results[key] = gt_depth
 
     def __call__(self, results):
-        """Call function to resize images, bounding boxes, masks, rsimhe estimation map.
+        """Call function to resize images, bounding boxes, masks, depth estimation map.
 
         Args:
             results (dict): Result dict from loading pipeline.
@@ -615,7 +615,7 @@ class Resize(object):
         if 'scale' not in results:
             self._random_scale(results)
         self._resize_img(results)
-        self._resize_rsimhe(results)
+        self._resize_depth(results)
         return results
 
     def __repr__(self):

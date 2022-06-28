@@ -15,7 +15,7 @@ class InvertedResidual(nn.Module):
         stride (int): Stride of the middle (first) 3x3 convolution.
         expand_ratio (int): Adjusts number of channels of the hidden layer
             in InvertedResidual by this amount.
-        dilation (int): Dilation rate of rsimhewise conv. Default: 1
+        dilation (int): Dilation rate of depthwise conv. Default: 1
         conv_cfg (dict): Config dict for convolution layer.
             Default: None, which means using conv2d.
         norm_cfg (dict): Config dict for normalization layer.
@@ -105,10 +105,10 @@ class InvertedResidualV3(nn.Module):
     Args:
         in_channels (int): The input channels of this Module.
         out_channels (int): The output channels of this Module.
-        mid_channels (int): The input channels of the rsimhewise convolution.
-        kernel_size (int): The kernel size of the rsimhewise convolution.
+        mid_channels (int): The input channels of the depthwise convolution.
+        kernel_size (int): The kernel size of the depthwise convolution.
             Default: 3.
-        stride (int): The stride of the rsimhewise convolution. Default: 1.
+        stride (int): The stride of the depthwise convolution. Default: 1.
         se_cfg (dict): Config dict for se layer. Default: None, which means no
             se layer.
         with_expand_conv (bool): Use expand conv or not. If set False,
@@ -160,7 +160,7 @@ class InvertedResidualV3(nn.Module):
                 conv_cfg=conv_cfg,
                 norm_cfg=norm_cfg,
                 act_cfg=act_cfg)
-        self.rsimhewise_conv = ConvModule(
+        self.depthwise_conv = ConvModule(
             in_channels=mid_channels,
             out_channels=mid_channels,
             kernel_size=kernel_size,
@@ -193,7 +193,7 @@ class InvertedResidualV3(nn.Module):
             if self.with_expand_conv:
                 out = self.expand_conv(out)
 
-            out = self.rsimhewise_conv(out)
+            out = self.depthwise_conv(out)
 
             if self.with_se:
                 out = self.se(out)

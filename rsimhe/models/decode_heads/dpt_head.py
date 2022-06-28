@@ -298,7 +298,7 @@ class DPTHead(DepthBaseDecodeHead):
         self.num_post_process_channels = len(self.post_process_channels)
         assert self.num_fusion_blocks == self.num_reassemble_blocks
         assert self.num_reassemble_blocks == self.num_post_process_channels
-        self.conv_rsimhe = HeadDepth(self.channels)
+        self.conv_depth = HeadDepth(self.channels)
 
     def forward(self, inputs, img_metas):
         assert len(inputs) == self.num_reassemble_blocks
@@ -309,5 +309,5 @@ class DPTHead(DepthBaseDecodeHead):
         for i in range(1, len(self.fusion_blocks)):
             out = self.fusion_blocks[i](out, x[-(i + 1)])
         out = self.project(out)
-        out = self.rsimhe_pred(out)
+        out = self.depth_pred(out)
         return out

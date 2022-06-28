@@ -1,4 +1,4 @@
-from rsimhe.models import rsimheer
+from rsimhe.models import rsimher
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,7 +14,7 @@ import numpy as np
 
 @DEPTHER.register_module()
 class DepthEncoderDecoder(BaseDepther):
-    """Encoder Decoder rsimheer.
+    """Encoder Decoder rsimher.
 
     EncoderDecoder typically consists of backbone, (neck) and decode_head.
     """
@@ -30,7 +30,7 @@ class DepthEncoderDecoder(BaseDepther):
         super(DepthEncoderDecoder, self).__init__(init_cfg)
         if pretrained is not None:
             assert backbone.get('pretrained') is None, \
-                'both backbone and rsimheer set pretrained weight'
+                'both backbone and rsimher set pretrained weight'
             backbone.pretrained = pretrained
         self.backbone = builder.build_backbone(backbone)
         self._init_decode_head(decode_head)
@@ -56,13 +56,13 @@ class DepthEncoderDecoder(BaseDepther):
         return x
 
     def encode_decode(self, img, img_metas, rescale=True):
-        """Encode images with backbone and decode into a rsimhe estimation
+        """Encode images with backbone and decode into a depth estimation
         map of the same size as input."""
         
         x = self.extract_feat(img)
         out = self._decode_head_forward_test(x, img_metas)
-        # crop the pred rsimhe to the certain range.
-        out = torch.clamp(out, min=self.decode_head.min_rsimhe, max=self.decode_head.max_rsimhe)
+        # crop the pred depth to the certain range.
+        out = torch.clamp(out, min=self.decode_head.min_depth, max=self.decode_head.max_depth)
         if rescale:
             out = resize(
                 input=out,
@@ -71,27 +71,27 @@ class DepthEncoderDecoder(BaseDepther):
                 align_corners=self.align_corners)
         return out
 
-    def _decode_head_forward_train(self, img, x, img_metas, rsimhe_gt, **kwargs):
+    def _decode_head_forward_train(self, img, x, img_metas, depth_gt, **kwargs):
         """Run forward function and calculate loss for decode head in
         training."""
         losses = dict()
-        loss_decode = self.decode_head.forward_train(img, x, img_metas, rsimhe_gt, self.train_cfg, **kwargs)
+        loss_decode = self.decode_head.forward_train(img, x, img_metas, depth_gt, self.train_cfg, **kwargs)
         losses.update(add_prefix(loss_decode, 'decode'))
         return losses
 
     def _decode_head_forward_test(self, x, img_metas):
         """Run forward function and calculate loss for decode head in
         inference."""
-        rsimhe_pred = self.decode_head.forward_test(x, img_metas, self.test_cfg)
-        return rsimhe_pred
+        depth_pred = self.decode_head.forward_test(x, img_metas, self.test_cfg)
+        return depth_pred
 
     def forward_dummy(self, img):
         """Dummy forward function."""
-        rsimhe = self.encode_decode(img, None)
+        depth = self.encode_decode(img, None)
 
-        return rsimhe
+        return depth
 
-    def forward_train(self, img, img_metas, rsimhe_gt, **kwargs):
+    def forward_train(self, img, img_metas, depth_gt, **kwargs):
         """Forward function for training.
 
         Args:
@@ -100,9 +100,9 @@ class DepthEncoderDecoder(BaseDepther):
                 has: 'img_shape', 'scale_factor', 'flip', and may also contain
                 'filename', 'ori_shape', 'pad_shape', and 'img_norm_cfg'.
                 For details on the values of these keys see
-                `rsimhe/datasets/pipelines/formatting.py:Collect`.
-            rsimhe_gt (Tensor): Depth gt
-                used if the architecture supports rsimhe estimation task.
+                `depth/datasets/pipelines/formatting.py:Collect`.
+            depth_gt (Tensor): Depth gt
+                used if the architecture supports depth estimation task.
 
         Returns:
             dict[str, Tensor]: a dictionary of loss components
@@ -113,7 +113,7 @@ class DepthEncoderDecoder(BaseDepther):
         losses = dict()
 
         # the last of x saves the info from neck
-        loss_decode = self._decode_head_forward_train(img, x, img_metas, rsimhe_gt, **kwargs)
+        loss_decode = self._decode_head_forward_train(img, x, img_metas, depth_gt, **kwargs)
  
         losses.update(loss_decode)
 
@@ -122,9 +122,9 @@ class DepthEncoderDecoder(BaseDepther):
     def whole_inference(self, img, img_meta, rescale):
         """Inference with full image."""
 
-        rsimhe_pred = self.encode_decode(img, img_meta, rescale)
+        depth_pred = self.encode_decode(img, img_meta, rescale)
 
-        return rsimhe_pred
+        return depth_pred
 
     def inference(self, img, img_meta, rescale):
         """Inference with slide/whole style.
@@ -135,11 +135,11 @@ class DepthEncoderDecoder(BaseDepther):
                 'scale_factor', 'flip', and may also contain
                 'filename', 'ori_shape', 'pad_shape', and 'img_norm_cfg'.
                 For details on the values of these keys see
-                `rsimhe/datasets/pipelines/formatting.py:Collect`.
+                `depth/datasets/pipelines/formatting.py:Collect`.
             rescale (bool): Whether rescale back to original shape.
 
         Returns:
-            Tensor: The output rsimhe map.
+            Tensor: The output depth map.
         """
 
         assert self.test_cfg.mode in ['slide', 'whole']
@@ -148,8 +148,8 @@ class DepthEncoderDecoder(BaseDepther):
         if self.test_cfg.mode == 'slide':
             raise NotImplementedError
         else:
-            rsimhe_pred = self.whole_inference(img, img_meta, rescale)
-        output = rsimhe_pred
+            depth_pred = self.whole_inference(img, img_meta, rescale)
+        output = depth_pred
         flip = img_meta[0]['flip']
         if flip:
             flip_direction = img_meta[0]['flip_direction']
@@ -163,15 +163,15 @@ class DepthEncoderDecoder(BaseDepther):
 
     def simple_test(self, img, img_meta, rescale=True):
         """Simple test with single image."""
-        rsimhe_pred = self.inference(img, img_meta, rescale)
+        depth_pred = self.inference(img, img_meta, rescale)
         if torch.onnx.is_in_onnx_export():
             # our inference backend only support 4D output
-            rsimhe_pred = rsimhe_pred.unsqueeze(0)
-            return rsimhe_pred
-        rsimhe_pred = rsimhe_pred.cpu().numpy()
+            depth_pred = depth_pred.unsqueeze(0)
+            return depth_pred
+        depth_pred = depth_pred.cpu().numpy()
         # unravel batch dim
-        rsimhe_pred = list(rsimhe_pred)
-        return rsimhe_pred
+        depth_pred = list(depth_pred)
+        return depth_pred
 
     def aug_test(self, imgs, img_metas, rescale=True):
         """Test with augmentations.
@@ -180,13 +180,13 @@ class DepthEncoderDecoder(BaseDepther):
         """
         # aug_test rescale all imgs back to ori_shape for now
         assert rescale
-        # to save memory, we get augmented rsimhe logit inplace
-        rsimhe_pred = self.inference(imgs[0], img_metas[0], rescale)
+        # to save memory, we get augmented depth logit inplace
+        depth_pred = self.inference(imgs[0], img_metas[0], rescale)
         for i in range(1, len(imgs)):
-            cur_rsimhe_pred = self.inference(imgs[i], img_metas[i], rescale)
-            rsimhe_pred += cur_rsimhe_pred
-        rsimhe_pred /= len(imgs)
-        rsimhe_pred = rsimhe_pred.cpu().numpy()
+            cur_depth_pred = self.inference(imgs[i], img_metas[i], rescale)
+            depth_pred += cur_depth_pred
+        depth_pred /= len(imgs)
+        depth_pred = depth_pred.cpu().numpy()
         # unravel batch dim
-        rsimhe_pred = list(rsimhe_pred)
-        return rsimhe_pred
+        depth_pred = list(depth_pred)
+        return depth_pred

@@ -31,9 +31,9 @@ def calculate(gt, pred):
     log_10 = (np.abs(np.log10(gt) - np.log10(pred))).mean()
     return a1, a2, a3, abs_rel, rmse, log_10, rmse_log, silog, sq_rel
 
-def metrics(gt, pred, min_rsimhe=1e-3, max_rsimhe=80):
-    mask_1 = gt > min_rsimhe
-    mask_2 = gt < max_rsimhe
+def metrics(gt, pred, min_depth=1e-3, max_depth=80):
+    mask_1 = gt > min_depth
+    mask_2 = gt < max_depth
     mask = np.logical_and(mask_1, mask_2)
 
     gt = gt[mask]
@@ -43,9 +43,9 @@ def metrics(gt, pred, min_rsimhe=1e-3, max_rsimhe=80):
 
     return a1, a2, a3, abs_rel, rmse, log_10, rmse_log, silog, sq_rel
 
-def eval_metrics(gt, pred, min_rsimhe=1e-3, max_rsimhe=80):
-    mask_1 = gt > min_rsimhe
-    mask_2 = gt < max_rsimhe
+def eval_metrics(gt, pred, min_depth=1e-3, max_depth=80):
+    mask_1 = gt > min_depth
+    mask_2 = gt < max_depth
     mask = np.logical_and(mask_1, mask_2)
 
     gt = gt[mask]

@@ -64,7 +64,7 @@ def single_gpu_test(model,
     Returns:
         list: list of evaluation pre-results or list of save file names.
     """
-    # when none of them is set true, return rsimhe results as
+    # when none of them is set true, return depth results as
     # a list of np.array.
     assert [pre_eval, format_only].count(True) <= 1, \
         '``pre_eval`` and ``format_only`` are mutually ' \
@@ -85,17 +85,17 @@ def single_gpu_test(model,
         result = [None]
 
         with torch.no_grad():
-            result_rsimhe = model(return_loss=False, **data)
+            result_depth = model(return_loss=False, **data)
 
         if format_only:
-            result = dataset.format_results(result_rsimhe,
+            result = dataset.format_results(result_depth,
                                             indices=batch_indices,
                                             **format_args)
         if pre_eval:
             # TODO: adapt samples_per_gpu > 1.
             # only samples_per_gpu=1 valid now
-            # eval metric, result rsimhe.
-            result, result_rsimhe = dataset.pre_eval(result_rsimhe,
+            # eval metric, result depth.
+            result, result_depth = dataset.pre_eval(result_depth,
                                                     indices=batch_indices)
 
         # if format only, result will be formated output
@@ -128,7 +128,7 @@ def single_gpu_test(model,
 
                 model.module.show_result(
                     img_show,
-                    result_rsimhe,
+                    result_depth,
                     show=show,
                     out_file=out_file,
                     format_only=format_only)
@@ -174,7 +174,7 @@ def multi_gpu_test(model,
         list: list of evaluation pre-results or list of save file names.
     """
 
-    # when none of them is set true, return rsimhe estimation results as
+    # when none of them is set true, return depth estimation results as
     # a list of np.array.
     assert [pre_eval, format_only].count(True) <= 1, \
         '``pre_eval`` and ``format_only`` are mutually ' \

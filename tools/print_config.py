@@ -3,7 +3,7 @@ import argparse
 
 from mmcv import Config, DictAction
 
-from depth.apis import init_depther
+from rsimhe.apis import init_rsimheer
 
 
 def parse_args():
@@ -29,7 +29,7 @@ def main():
     cfg.dump('example.py')
     # dump models graph
     if args.graph:
-        model = init_depther(args.config, device='cpu')
+        model = init_rsimheer(args.config, device='cpu')
         print(f'Model graph:\n{str(model)}')
         with open('example-graph.txt', 'w') as f:
             f.writelines(str(model))

@@ -1,0 +1,243 @@
+2022-06-28 13:09:25,340 - rsimhe - INFO - Environment info:
+------------------------------------------------------------
+sys.platform: linux
+Python: 3.8.2 (default, Mar 25 2020, 17:03:02) [GCC 7.3.0]
+CUDA available: True
+GPU 0,1,2,3,4,5,6,7: GeForce RTX 3090
+CUDA_HOME: /usr/local/cuda
+NVCC: Cuda compilation tools, release 11.0, V11.0.221
+GCC: gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0
+PyTorch: 1.13.0.dev20220610+cu113
+PyTorch compiling details: PyTorch built with:
+  - GCC 9.3
+  - C++ Version: 201402
+  - Intel(R) Math Kernel Library Version 2020.0.2 Product Build 20200624 for Intel(R) 64 architecture applications
+  - Intel(R) MKL-DNN v2.6.0 (Git Hash 52b5f107dd9cf10910aaa19cb47f3abf9b349815)
+  - OpenMP 201511 (a.k.a. OpenMP 4.5)
+  - LAPACK is enabled (usually provided by MKL)
+  - NNPACK is enabled
+  - CPU capability usage: AVX2
+  - CUDA Runtime 11.3
+  - NVCC architecture flags: -gencode;arch=compute_37,code=sm_37;-gencode;arch=compute_50,code=sm_50;-gencode;arch=compute_60,code=sm_60;-gencode;arch=compute_70,code=sm_70;-gencode;arch=compute_75,code=sm_75;-gencode;arch=compute_80,code=sm_80;-gencode;arch=compute_86,code=sm_86
+  - CuDNN 8.3.2  (built against CUDA 11.5)
+  - Magma 2.5.2
+  - Build settings: BLAS_INFO=mkl, BUILD_TYPE=Release, CUDA_VERSION=11.3, CUDNN_VERSION=8.3.2, CXX_COMPILER=/opt/rh/devtoolset-9/root/usr/bin/c++, CXX_FLAGS= -Wno-deprecated -fvisibility-inlines-hidden -DUSE_PTHREADPOOL -fopenmp -DNDEBUG -DUSE_KINETO -DUSE_FBGEMM -DUSE_QNNPACK -DUSE_PYTORCH_QNNPACK -DUSE_XNNPACK -DSYMBOLICATE_MOBILE_DEBUG_HANDLE -DEDGE_PROFILER_USE_KINETO -O2 -fPIC -Wno-narrowing -Wall -Wextra -Werror=return-type -Wno-missing-field-initializers -Wno-type-limits -Wno-array-bounds -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-function -Wno-unused-result -Wno-strict-overflow -Wno-strict-aliasing -Wno-error=deprecated-declarations -Wno-stringop-overflow -Wno-psabi -Wno-error=pedantic -Wno-error=redundant-decls -Wno-error=old-style-cast -fdiagnostics-color=always -faligned-new -Wno-unused-but-set-variable -Wno-maybe-uninitialized -fno-math-errno -fno-trapping-math -Werror=format -Werror=cast-function-type -Wno-stringop-overflow, LAPACK_INFO=mkl, PERF_WITH_AVX=1, PERF_WITH_AVX2=1, PERF_WITH_AVX512=1, TORCH_VERSION=1.13.0, USE_CUDA=ON, USE_CUDNN=ON, USE_EXCEPTION_PTR=1, USE_GFLAGS=OFF, USE_GLOG=OFF, USE_MKL=ON, USE_MKLDNN=OFF, USE_MPI=OFF, USE_NCCL=ON, USE_NNPACK=ON, USE_OPENMP=ON, USE_ROCM=OFF, 
+
+TorchVision: 0.14.0.dev20220610+cu113
+OpenCV: 4.5.2
+MMCV: 1.5.1
+MMCV Compiler: GCC 7.5
+MMCV CUDA Compiler: 11.0
+Depth: 0.1.1+3a2fb68
+------------------------------------------------------------
+
+2022-06-28 13:09:25,341 - rsimhe - INFO - Distributed training: True
+2022-06-28 13:09:25,790 - rsimhe - INFO - Config:
+norm_cfg = dict(type='BN', requires_grad=True)
+model = dict(
+    type='DepthEncoderDecoder',
+    backbone=dict(
+        type='ResNet',
+        depth=50,
+        num_stages=4,
+        out_indices=(0, 1, 2, 3, 4),
+        style='pytorch',
+        norm_cfg=dict(type='BN', requires_grad=True)),
+    decode_head=dict(
+        type='DenseDepthHead',
+        in_channels=[64, 256, 512, 1024, 2048],
+        up_sample_channels=[128, 256, 512, 1024, 2048],
+        channels=128,
+        align_corners=True,
+        loss_decode=dict(type='SigLoss', valid_mask=True, loss_weight=1.0),
+        scale_up=True,
+        min_depth=0.001,
+        max_depth=10),
+    train_cfg=dict(),
+    test_cfg=dict(mode='whole'))
+dataset_type = 'NYUDataset'
+data_root = 'data/nyu/'
+img_norm_cfg = dict(
+    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+crop_size = (416, 544)
+train_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(type='DepthLoadAnnotations'),
+    dict(type='NYUCrop', depth=True),
+    dict(type='RandomRotate', prob=0.5, degree=2.5),
+    dict(type='RandomFlip', prob=0.5),
+    dict(type='RandomCrop', crop_size=(416, 544)),
+    dict(
+        type='ColorAug',
+        prob=0.5,
+        gamma_range=[0.9, 1.1],
+        brightness_range=[0.75, 1.25],
+        color_range=[0.9, 1.1]),
+    dict(
+        type='Normalize',
+        mean=[123.675, 116.28, 103.53],
+        std=[58.395, 57.12, 57.375],
+        to_rgb=True),
+    dict(type='DefaultFormatBundle'),
+    dict(
+        type='Collect',
+        keys=['img', 'depth_gt'],
+        meta_keys=('filename', 'ori_filename', 'ori_shape', 'img_shape',
+                   'pad_shape', 'scale_factor', 'flip', 'flip_direction',
+                   'img_norm_cfg', 'cam_intrinsic'))
+]
+test_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(
+        type='MultiScaleFlipAug',
+        img_scale=(480, 640),
+        flip=True,
+        flip_direction='horizontal',
+        transforms=[
+            dict(type='RandomFlip', direction='horizontal'),
+            dict(
+                type='Normalize',
+                mean=[123.675, 116.28, 103.53],
+                std=[58.395, 57.12, 57.375],
+                to_rgb=True),
+            dict(type='ImageToTensor', keys=['img']),
+            dict(
+                type='Collect',
+                keys=['img'],
+                meta_keys=('filename', 'ori_filename', 'ori_shape',
+                           'img_shape', 'pad_shape', 'scale_factor', 'flip',
+                           'flip_direction', 'img_norm_cfg', 'cam_intrinsic'))
+        ])
+]
+data = dict(
+    samples_per_gpu=8,
+    workers_per_gpu=8,
+    train=dict(
+        type='NYUDataset',
+        data_root='data/nyu/',
+        depth_scale=1000,
+        split='nyu_train.txt',
+        pipeline=[
+            dict(type='LoadImageFromFile'),
+            dict(type='DepthLoadAnnotations'),
+            dict(type='NYUCrop', depth=True),
+            dict(type='RandomRotate', prob=0.5, degree=2.5),
+            dict(type='RandomFlip', prob=0.5),
+            dict(type='RandomCrop', crop_size=(416, 544)),
+            dict(
+                type='ColorAug',
+                prob=0.5,
+                gamma_range=[0.9, 1.1],
+                brightness_range=[0.75, 1.25],
+                color_range=[0.9, 1.1]),
+            dict(
+                type='Normalize',
+                mean=[123.675, 116.28, 103.53],
+                std=[58.395, 57.12, 57.375],
+                to_rgb=True),
+            dict(type='DefaultFormatBundle'),
+            dict(
+                type='Collect',
+                keys=['img', 'depth_gt'],
+                meta_keys=('filename', 'ori_filename', 'ori_shape',
+                           'img_shape', 'pad_shape', 'scale_factor', 'flip',
+                           'flip_direction', 'img_norm_cfg', 'cam_intrinsic'))
+        ],
+        garg_crop=False,
+        eigen_crop=True,
+        min_depth=0.001,
+        max_depth=10),
+    val=dict(
+        type='NYUDataset',
+        data_root='data/nyu/',
+        depth_scale=1000,
+        split='nyu_test.txt',
+        pipeline=[
+            dict(type='LoadImageFromFile'),
+            dict(
+                type='MultiScaleFlipAug',
+                img_scale=(480, 640),
+                flip=True,
+                flip_direction='horizontal',
+                transforms=[
+                    dict(type='RandomFlip', direction='horizontal'),
+                    dict(
+                        type='Normalize',
+                        mean=[123.675, 116.28, 103.53],
+                        std=[58.395, 57.12, 57.375],
+                        to_rgb=True),
+                    dict(type='ImageToTensor', keys=['img']),
+                    dict(
+                        type='Collect',
+                        keys=['img'],
+                        meta_keys=('filename', 'ori_filename', 'ori_shape',
+                                   'img_shape', 'pad_shape', 'scale_factor',
+                                   'flip', 'flip_direction', 'img_norm_cfg',
+                                   'cam_intrinsic'))
+                ])
+        ],
+        garg_crop=False,
+        eigen_crop=True,
+        min_depth=0.001,
+        max_depth=10),
+    test=dict(
+        type='NYUDataset',
+        data_root='data/nyu/',
+        depth_scale=1000,
+        split='nyu_test.txt',
+        pipeline=[
+            dict(type='LoadImageFromFile'),
+            dict(
+                type='MultiScaleFlipAug',
+                img_scale=(480, 640),
+                flip=True,
+                flip_direction='horizontal',
+                transforms=[
+                    dict(type='RandomFlip', direction='horizontal'),
+                    dict(
+                        type='Normalize',
+                        mean=[123.675, 116.28, 103.53],
+                        std=[58.395, 57.12, 57.375],
+                        to_rgb=True),
+                    dict(type='ImageToTensor', keys=['img']),
+                    dict(
+                        type='Collect',
+                        keys=['img'],
+                        meta_keys=('filename', 'ori_filename', 'ori_shape',
+                                   'img_shape', 'pad_shape', 'scale_factor',
+                                   'flip', 'flip_direction', 'img_norm_cfg',
+                                   'cam_intrinsic'))
+                ])
+        ],
+        garg_crop=False,
+        eigen_crop=True,
+        min_depth=0.001,
+        max_depth=10))
+log_config = dict(
+    interval=50,
+    hooks=[
+        dict(type='TextLoggerHook', by_epoch=True),
+        dict(type='TensorboardImageLoggerHook', by_epoch=True)
+    ])
+dist_params = dict(backend='nccl')
+log_level = 'INFO'
+load_from = None
+resume_from = None
+workflow = [('train', 1)]
+cudnn_benchmark = True
+max_lr = 0.0001
+optimizer = dict(
+    type='AdamW', lr=0.0001, betas=(0.95, 0.99), weight_decay=0.01)
+lr_config = dict(
+    policy='OneCycle',
+    max_lr=0.0001,
+    div_factor=25,
+    final_div_factor=100,
+    by_epoch=False)
+optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
+runner = dict(type='EpochBasedRunner', max_epochs=24)
+checkpoint_config = dict(by_epoch=True, max_keep_ckpts=2, interval=1)
+evaluation = dict(by_epoch=True, interval=6, pre_eval=True)
+work_dir = 'work_dir/logs/scratch_nyu'
+gpu_ids = range(0, 1)
+

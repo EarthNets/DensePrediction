@@ -31,14 +31,14 @@ def set_random_seed(seed, deterministic=False):
         torch.backends.cudnn.benchmark = False
 
 
-def train_rsimheer(model,
+def train_rsimher(model,
                     dataset,
                     cfg,
                     distributed=False,
                     validate=False,
                     timestamp=None,
                     meta=None):
-    """Launch rsimheer training."""
+    """Launch rsimher training."""
     logger = get_root_logger(cfg.log_level)
 
     # prepare data loaders

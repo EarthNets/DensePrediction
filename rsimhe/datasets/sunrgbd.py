@@ -28,7 +28,7 @@ def remove_leading_slash(s):
 
 @DATASETS.register_module()
 class SUNRGBDDataset(Dataset):
-    """SUNRGBD dataset for rsimhe estimation. An example of file structure
+    """SUNRGBD dataset for depth estimation. An example of file structure
     is as followed.
     .. code-block:: none
         ├── root_path
@@ -40,7 +40,7 @@ class SUNRGBDDataset(Dataset):
         │   │
     split file format:
     input_image: SUNRGBD/kv2/kinect2data/000002_2014-05-26_14-23-37_260595134347_rgbf000103-resize/image/0000103.jpg 
-    gt_rsimhe:    SUNRGBD/kv2/kinect2data/000002_2014-05-26_14-23-37_260595134347_rgbf000103-resize/image/0000103.png 
+    gt_depth:    SUNRGBD/kv2/kinect2data/000002_2014-05-26_14-23-37_260595134347_rgbf000103-resize/image/0000103.png 
     Args:
         pipeline (list[dict]): Processing pipeline
         ann_dir (str, optional): Path to annotation directory. Default: None
@@ -58,16 +58,16 @@ class SUNRGBDDataset(Dataset):
                  split=None,
                  data_root=None,
                  test_mode=False,
-                 rsimhe_scale=1000,
-                 min_rsimhe=1e-3,
-                 max_rsimhe=10):
+                 depth_scale=1000,
+                 min_depth=1e-3,
+                 max_depth=10):
         self.pipeline = Compose(pipeline)
         self.split = split
         self.data_root = data_root
         self.test_mode = test_mode
-        self.rsimhe_scale = rsimhe_scale
-        self.min_rsimhe = min_rsimhe
-        self.max_rsimhe = max_rsimhe
+        self.depth_scale = depth_scale
+        self.min_depth = min_depth
+        self.max_depth = max_depth
 
         # join paths if data_root is specified
         if self.data_root is not None:
@@ -87,7 +87,7 @@ class SUNRGBDDataset(Dataset):
         Args:
             img_dir (str): Path to data directory
             img_suffix (str): Suffix of images.
-            rsimhe_map_suffix (str|None): Suffix of rsimhe maps.
+            depth_map_suffix (str|None): Suffix of depth maps.
             split (str|None): Split txt file. If split is specified, only file
                 with suffix in the splits will be loaded. Otherwise, all images
                 in img_dir/ann_dir will be loaded. Default: None
@@ -95,17 +95,17 @@ class SUNRGBDDataset(Dataset):
             list[dict]: All image info of dataset.
         """
 
-        self.invalid_rsimhe_num = 0
+        self.invalid_depth_num = 0
         img_infos = []
         if split is not None:
             with open(split) as f:
                 for line in f:
                     img_info = dict()
-                    rsimhe_map = line.strip().split(" ")[1]
-                    if rsimhe_map == 'None':
-                        self.invalid_rsimhe_num += 1
+                    depth_map = line.strip().split(" ")[1]
+                    if depth_map == 'None':
+                        self.invalid_depth_num += 1
                         continue
-                    img_info['ann'] = dict(rsimhe_map=osp.join(data_root, remove_leading_slash(rsimhe_map)))
+                    img_info['ann'] = dict(depth_map=osp.join(data_root, remove_leading_slash(depth_map)))
                     img_name = line.strip().split(" ")[0]
                     img_info['filename'] = osp.join(data_root, remove_leading_slash(img_name))
                     img_infos.append(img_info)
@@ -115,7 +115,7 @@ class SUNRGBDDataset(Dataset):
 
         # github issue:: make sure the same order
         img_infos = sorted(img_infos, key=lambda x: x['filename'])
-        print_log(f'Loaded {len(img_infos)} images. Totally {self.invalid_rsimhe_num} invalid pairs are filtered', logger=get_root_logger())
+        print_log(f'Loaded {len(img_infos)} images. Totally {self.invalid_depth_num} invalid pairs are filtered', logger=get_root_logger())
         return img_infos
 
     def get_ann_info(self, idx):
@@ -129,8 +129,8 @@ class SUNRGBDDataset(Dataset):
 
     def pre_pipeline(self, results):
         """Prepare results dict for pipeline."""
-        results['rsimhe_fields'] = []
-        results['rsimhe_scale'] = self.rsimhe_scale
+        results['depth_fields'] = []
+        results['depth_scale'] = self.depth_scale
 
     def __getitem__(self, idx):
         """Get training/test data after pipeline.
@@ -179,17 +179,17 @@ class SUNRGBDDataset(Dataset):
         """Place holder to format result to dataset specific output."""
         raise NotImplementedError
 
-    def get_gt_rsimhe_maps(self):
-        """Get ground truth rsimhe maps for evaluation."""
+    def get_gt_depth_maps(self):
+        """Get ground truth depth maps for evaluation."""
 
         for img_info in self.img_infos:
-            rsimhe_map = img_info['ann']['rsimhe_map']
-            rsimhe_map_gt = np.asarray(Image.open(rsimhe_map), dtype=np.float32) / self.rsimhe_scale
-            yield rsimhe_map_gt
+            depth_map = img_info['ann']['depth_map']
+            depth_map_gt = np.asarray(Image.open(depth_map), dtype=np.float32) / self.depth_scale
+            yield depth_map_gt
 
-    def eval_mask(self, rsimhe_gt):
-        rsimhe_gt = np.squeeze(rsimhe_gt)
-        valid_mask = np.logical_and(rsimhe_gt > self.min_rsimhe, rsimhe_gt < self.max_rsimhe)
+    def eval_mask(self, depth_gt):
+        depth_gt = np.squeeze(depth_gt)
+        valid_mask = np.logical_and(depth_gt > self.min_depth, depth_gt < self.max_depth)
         
         ##########
         eval_mask = np.zeros(valid_mask.shape)
@@ -203,7 +203,7 @@ class SUNRGBDDataset(Dataset):
     def pre_eval(self, preds, indices):
         """Collect eval result from each iteration.
         Args:
-            preds (list[torch.Tensor] | torch.Tensor): the rsimhe estimation, shape (N, H, W).
+            preds (list[torch.Tensor] | torch.Tensor): the depth estimation, shape (N, H, W).
             indices (list[int] | int): the prediction related ground truth
                 indices.
         Returns:
@@ -220,23 +220,23 @@ class SUNRGBDDataset(Dataset):
         pre_eval_preds = []
 
         for i, (pred, index) in enumerate(zip(preds, indices)):
-            rsimhe_map = self.img_infos[index]['ann']['rsimhe_map']
+            depth_map = self.img_infos[index]['ann']['depth_map']
 
-            # self.rsimhe_scale
-            rsimheVisData = np.asarray(Image.open(rsimhe_map, 'r'), np.uint16)
-            rsimheInpaint = np.bitwise_or(np.right_shift(rsimheVisData, 3), np.left_shift(rsimheVisData, 16 - 3))
-            rsimheInpaint = rsimheInpaint.astype(np.single) / 1000
-            rsimheInpaint[rsimheInpaint > 8] = 8
+            # self.depth_scale
+            depthVisData = np.asarray(Image.open(depth_map, 'r'), np.uint16)
+            depthInpaint = np.bitwise_or(np.right_shift(depthVisData, 3), np.left_shift(depthVisData, 16 - 3))
+            depthInpaint = depthInpaint.astype(np.single) / 1000
+            depthInpaint[depthInpaint > 8] = 8
             pred[pred > 8] = 8
-            rsimheInpaint = rsimheInpaint.astype(np.float32)
-            rsimhe_map_gt = rsimheInpaint
+            depthInpaint = depthInpaint.astype(np.float32)
+            depth_map_gt = depthInpaint
 
-            # rsimhe_map_gt = np.asarray(Image.open(rsimhe_map), dtype=np.float32) / self.rsimhe_scale
-            rsimhe_map_gt = np.expand_dims(rsimhe_map_gt, axis=0)
+            # depth_map_gt = np.asarray(Image.open(depth_map), dtype=np.float32) / self.depth_scale
+            depth_map_gt = np.expand_dims(depth_map_gt, axis=0)
 
-            valid_mask = self.eval_mask(rsimhe_map_gt)
+            valid_mask = self.eval_mask(depth_map_gt)
             
-            eval = metrics(rsimhe_map_gt[valid_mask], pred[valid_mask])
+            eval = metrics(depth_map_gt[valid_mask], pred[valid_mask])
             pre_eval_results.append(eval)
 
             # save prediction results
@@ -248,7 +248,7 @@ class SUNRGBDDataset(Dataset):
         """Evaluate the dataset.
         Args:
             results (list[tuple[torch.Tensor]] | list[str]): per image pre_eval
-                 results or predict rsimhe map for computing evaluation
+                 results or predict depth map for computing evaluation
                  metric.
             logger (logging.Logger | None | str): Logger used for printing
                 related information during evaluation. Default: None.
@@ -260,9 +260,9 @@ class SUNRGBDDataset(Dataset):
         # test a list of files
         if mmcv.is_list_of(results, np.ndarray) or mmcv.is_list_of(
                 results, str):
-            gt_rsimhe_maps = self.get_gt_rsimhe_maps()
+            gt_depth_maps = self.get_gt_depth_maps()
             ret_metrics = eval_metrics(
-                gt_rsimhe_maps,
+                gt_depth_maps,
                 results)
         # test a list of pre_eval_results
         else:

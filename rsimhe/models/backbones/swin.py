@@ -375,7 +375,7 @@ class SwinBlock(BaseModule):
             head_dim ** -0.5 if set. Default: None.
         drop_rate (float, optional): Dropout rate. Default: 0.
         attn_drop_rate (float, optional): Attention dropout rate. Default: 0.
-        drop_path_rate (float, optional): Stochastic rsimhe rate. Default: 0.2.
+        drop_path_rate (float, optional): Stochastic depth rate. Default: 0.2.
         act_cfg (dict, optional): The config dict of activation function.
             Default: dict(type='GELU').
         norm_cfg (dict, optional): The config dict of nomalization.
@@ -448,14 +448,14 @@ class SwinBlockSequence(BaseModule):
         embed_dims (int): The feature dimension.
         num_heads (int): Parallel attention heads.
         feedforward_channels (int): The hidden dimension for FFNs.
-        rsimhe (int): The number of blocks in this stage.
+        depth (int): The number of blocks in this stage.
         window size (int): The local window scale. Default: 7.
         qkv_bias (int): enable bias for qkv if True. Default: True.
         qk_scale (float | None, optional): Override default qk scale of
             head_dim ** -0.5 if set. Default: None.
         drop_rate (float, optional): Dropout rate. Default: 0.
         attn_drop_rate (float, optional): Attention dropout rate. Default: 0.
-        drop_path_rate (float, optional): Stochastic rsimhe rate. Default: 0.2.
+        drop_path_rate (float, optional): Stochastic depth rate. Default: 0.2.
         downsample (BaseModule | None, optional): The downsample operation
             module. Default: None.
         act_cfg (dict, optional): The config dict of activation function.
@@ -470,7 +470,7 @@ class SwinBlockSequence(BaseModule):
                  embed_dims,
                  num_heads,
                  feedforward_channels,
-                 rsimhe,
+                 depth,
                  window_size=7,
                  qkv_bias=True,
                  qk_scale=None,
@@ -487,10 +487,10 @@ class SwinBlockSequence(BaseModule):
 
         drop_path_rate = drop_path_rate if isinstance(
             drop_path_rate,
-            list) else [deepcopy(drop_path_rate) for _ in range(rsimhe)]
+            list) else [deepcopy(drop_path_rate) for _ in range(depth)]
 
         self.blocks = ModuleList()
-        for i in range(rsimhe):
+        for i in range(depth):
             block = SwinBlock(
                 embed_dims=embed_dims,
                 num_heads=num_heads,
@@ -540,7 +540,7 @@ class SwinTransformer(BaseModule):
         window_size (int): Window size. Default: 7.
         mlp_ratio (float): Ratio of mlp hidden dim to embedding dim.
             Default: 4.
-        rsimhes (tuple[int]): Depths of each Swin Transformer stage.
+        depths (tuple[int]): Depths of each Swin Transformer stage.
             Default: (2, 2, 6, 2).
         num_heads (tuple[int]): Parallel attention heads of each Swin
             Transformer stage. Default: (3, 6, 12, 24).
@@ -557,7 +557,7 @@ class SwinTransformer(BaseModule):
             merging. Default: True.
         drop_rate (float): Dropout rate. Defaults: 0.
         attn_drop_rate (float): Attention dropout rate. Default: 0.
-        drop_path_rate (float): Stochastic rsimhe rate. Defaults: 0.1.
+        drop_path_rate (float): Stochastic depth rate. Defaults: 0.1.
         use_abs_pos_embed (bool): If True, add absolute position embedding to
             the patch embedding. Defaults: False.
         act_cfg (dict): Config dict for activation layer.
@@ -578,7 +578,7 @@ class SwinTransformer(BaseModule):
                  patch_size=4,
                  window_size=7,
                  mlp_ratio=4,
-                 rsimhes=(2, 2, 6, 2),
+                 depths=(2, 2, 6, 2),
                  num_heads=(3, 6, 12, 24),
                  strides=(4, 2, 2, 2),
                  out_indices=(0, 1, 2, 3),
@@ -614,7 +614,7 @@ class SwinTransformer(BaseModule):
         else:
             raise TypeError('pretrained must be a str or None')
 
-        num_layers = len(rsimhes)
+        num_layers = len(depths)
         self.out_indices = out_indices
         self.use_abs_pos_embed = use_abs_pos_embed
         self.pretrain_style = pretrain_style
@@ -642,11 +642,11 @@ class SwinTransformer(BaseModule):
 
         self.drop_after_pos = nn.Dropout(p=drop_rate)
 
-        # stochastic rsimhe
-        total_rsimhe = sum(rsimhes)
+        # stochastic depth
+        total_depth = sum(depths)
         dpr = [
-            x.item() for x in torch.linspace(0, drop_path_rate, total_rsimhe)
-        ]  # stochastic rsimhe decay rule
+            x.item() for x in torch.linspace(0, drop_path_rate, total_depth)
+        ]  # stochastic depth decay rule
 
         self.stages = ModuleList()
         in_channels = embed_dims
@@ -665,20 +665,20 @@ class SwinTransformer(BaseModule):
                 embed_dims=in_channels,
                 num_heads=num_heads[i],
                 feedforward_channels=mlp_ratio * in_channels,
-                rsimhe=rsimhes[i],
+                depth=depths[i],
                 window_size=window_size,
                 qkv_bias=qkv_bias,
                 qk_scale=qk_scale,
                 drop_rate=drop_rate,
                 attn_drop_rate=attn_drop_rate,
-                drop_path_rate=dpr[:rsimhes[i]],
+                drop_path_rate=dpr[:depths[i]],
                 downsample=downsample,
                 act_cfg=act_cfg,
                 norm_cfg=norm_cfg,
                 init_cfg=None)
             self.stages.append(stage)
 
-            dpr = dpr[rsimhes[i]:]
+            dpr = dpr[depths[i]:]
             if downsample:
                 in_channels = downsample.out_channels
 

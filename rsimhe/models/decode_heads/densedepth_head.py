@@ -130,5 +130,5 @@ class DenseDepthHead(DepthBaseDecodeHead):
                     temp_feat = self.conv_list[index](up_feat, skip_feat)
                     temp_feat_list.append(temp_feat)
 
-        output = self.rsimhe_pred(temp_feat_list[-1])
+        output = self.depth_pred(temp_feat_list[-1])
         return output

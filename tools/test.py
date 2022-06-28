@@ -11,15 +11,15 @@ from mmcv.runner import (get_dist_info, init_dist, load_checkpoint,
                          wrap_fp16_model)
 from mmcv.utils import DictAction
 
-from depth.apis import multi_gpu_test, single_gpu_test
-from depth.datasets import build_dataloader, build_dataset
-from depth.models import build_depther
+from rsimhe.apis import multi_gpu_test, single_gpu_test
+from rsimhe.datasets import build_dataloader, build_dataset
+from rsimhe.models import build_rsimheer
 
 import numpy as np
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='depth test (and eval) a model')
+        description='rsimhe test (and eval) a model')
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument(
@@ -121,7 +121,7 @@ def main():
     # build the model and load checkpoint
     cfg.model.train_cfg = None
 
-    model = build_depther(
+    model = build_rsimheer(
         cfg.model,
         test_cfg=cfg.get('test_cfg'))
     
@@ -180,7 +180,7 @@ def main():
     if rank == 0:
         if args.out:
             warnings.warn(
-                'The pickled outputs could be depth map as type of '
+                'The pickled outputs could be rsimhe map as type of '
                 'np.array, pre-eval results or file paths for '
                 '``dataset.format_results()``.')
             print(f'\nwriting results to {args.out}')

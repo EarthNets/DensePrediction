@@ -10,15 +10,15 @@ import torch
 from mmcv.runner import init_dist
 from mmcv.utils import Config, DictAction, get_git_hash
 
-from depth import __version__
-from depth.apis import set_random_seed, train_depther
-from depth.datasets import build_dataset
-from depth.models import build_depther, build_depther
-from depth.utils import collect_env, get_root_logger
+from rsimhe import __version__
+from rsimhe.apis import set_random_seed, train_rsimher
+from rsimhe.datasets import build_dataset
+from rsimhe.models import build_rsimher, build_rsimher
+from rsimhe.utils import collect_env, get_root_logger
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train a depthor')
+    parser = argparse.ArgumentParser(description='Train a rsimheor')
     parser.add_argument('config', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
     parser.add_argument(
@@ -128,7 +128,7 @@ def main():
     meta['seed'] = args.seed
     meta['exp_name'] = osp.basename(args.config)
 
-    model = build_depther(
+    model = build_rsimher(
         cfg.model,
         train_cfg=cfg.get('train_cfg'),
         test_cfg=cfg.get('test_cfg'))
@@ -147,14 +147,14 @@ def main():
         val_dataset.pipeline = cfg.data.train.pipeline
         datasets.append(build_dataset(val_dataset))
     if cfg.checkpoint_config is not None:
-        # save depth version, config file content and class names in
+        # save rsimhe version, config file content and class names in
         # checkpoints as meta data
         cfg.checkpoint_config.meta = dict(
-            depth_version=f'{__version__}+{get_git_hash()[:7]}',
+            rsimhe_version=f'{__version__}+{get_git_hash()[:7]}',
             config=cfg.pretty_text)
     # passing checkpoint meta for saving best checkpoint
     meta.update(cfg.checkpoint_config.meta)
-    train_depther(
+    train_rsimher(
         model,
         datasets,
         cfg,

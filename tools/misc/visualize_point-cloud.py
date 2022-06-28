@@ -11,8 +11,8 @@ from mmcv.runner import (get_dist_info, init_dist, load_checkpoint,
 from os import path as osp
 from pathlib import Path
 
-from depth.datasets import build_dataloader, build_dataset
-from depth.models import build_depther
+from rsimhe.datasets import build_dataloader, build_dataset
+from rsimhe.models import build_rsimheer
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 
 import matplotlib.pyplot as plt
@@ -113,7 +113,7 @@ def main():
         workers_per_gpu=cfg.data.workers_per_gpu,
         dist=False,
         shuffle=False)
-    model = build_depther(cfg.model, test_cfg=cfg.get('test_cfg'))
+    model = build_rsimheer(cfg.model, test_cfg=cfg.get('test_cfg'))
     model.eval()
 
     # for other models
@@ -139,7 +139,7 @@ def main():
             name = osp.splitext(img_file)[0].split('/')[-2] + '_' + osp.splitext(img_file)[0].split('/')[-1]
             output = model(return_loss=False, **aug_data_dict)
 
-        depth = torch.tensor(output[0], dtype=torch.float32)
+        rsimhe = torch.tensor(output[0], dtype=torch.float32)
         # https://github.com/SJTU-ViSYS/StructDepth/blob/17478278c228662248772c9a0c94d553d20078c5/datasets/nyu_dataset.py#L345
 
         # y, x
@@ -154,11 +154,11 @@ def main():
             [0., 0., 1., 0.], [0., 0., 0., 1.]
         ]
         
-        depth = depth[0, 44:480-44, 40:640-40].contiguous()
+        rsimhe = rsimhe[0, 44:480-44, 40:640-40].contiguous()
 
         meshgrid = np.meshgrid(range(w), range(h), indexing='xy')
         id_coords = np.stack(meshgrid, axis=0).astype(np.float32)
-        id_coords = depth.new_tensor(id_coords)
+        id_coords = rsimhe.new_tensor(id_coords)
         pix_coords = torch.cat([id_coords[0].view(-1).unsqueeze(dim=0), id_coords[1].view(-1).unsqueeze(dim=0)], 0)
         ones = torch.ones(1, w * h)
         pix_coords = torch.cat([pix_coords, ones], dim=0) # 3xHW
@@ -168,9 +168,9 @@ def main():
         cam_points = torch.matmul(inv_K[:3, :3], pix_coords)
         # 307200
         
-        depth_flatten = depth.view(-1)
+        rsimhe_flatten = rsimhe.view(-1)
 
-        cam_points = torch.einsum('cn,n->cn', cam_points, depth_flatten)
+        cam_points = torch.einsum('cn,n->cn', cam_points, rsimhe_flatten)
        
 
         img_tensor = torch.tensor(img[44:480-44, 40:640-40, :], dtype=torch.uint8)

@@ -177,8 +177,8 @@ class AdabinsHead(DenseDepthHead):
         bin_widths_normed, range_attention_maps = self.adaptive_bins_layer(decode_out_feat)
         out = self.conv_out(range_attention_maps)
 
-        bin_widths = (self.max_rsimhe - self.min_rsimhe) * bin_widths_normed  # .shape = N, dim_out
-        bin_widths = nn.functional.pad(bin_widths, (1, 0), mode='constant', value=self.min_rsimhe)
+        bin_widths = (self.max_depth - self.min_depth) * bin_widths_normed  # .shape = N, dim_out
+        bin_widths = nn.functional.pad(bin_widths, (1, 0), mode='constant', value=self.min_depth)
         bin_edges = torch.cumsum(bin_widths, dim=1)
 
         centers = 0.5 * (bin_edges[:, :-1] + bin_edges[:, 1:])
@@ -190,26 +190,26 @@ class AdabinsHead(DenseDepthHead):
         return output, bin_edges
 
 
-    def forward_train(self, img, inputs, img_metas, rsimhe_gt, train_cfg):
-        rsimhe_pred, bin_edges = self.forward(inputs, img_metas)
-        rsimhe_pred = resize(
-            input=rsimhe_pred,
-            size=rsimhe_gt.shape[2:],
+    def forward_train(self, img, inputs, img_metas, depth_gt, train_cfg):
+        depth_pred, bin_edges = self.forward(inputs, img_metas)
+        depth_pred = resize(
+            input=depth_pred,
+            size=depth_gt.shape[2:],
             mode='bilinear',
             align_corners=self.align_corners,
             warning=False)
 
         losses = dict()
-        losses["loss_rsimhe"] = self.loss_decode(rsimhe_pred, rsimhe_gt)
-        losses["loss_chamfer"] = self.loss_chamfer(bin_edges, rsimhe_gt)
+        losses["loss_depth"] = self.loss_decode(depth_pred, depth_gt)
+        losses["loss_chamfer"] = self.loss_chamfer(bin_edges, depth_gt)
 
-        log_imgs = self.log_images(img[0], rsimhe_pred[0], rsimhe_gt[0], img_metas[0])
+        log_imgs = self.log_images(img[0], depth_pred[0], depth_gt[0], img_metas[0])
         losses.update(**log_imgs)
 
         return losses
 
     def forward_test(self, inputs, img_metas, test_cfg):
 
-        rsimhe_pred, bin_edges = self.forward(inputs, img_metas)
-        return rsimhe_pred
+        depth_pred, bin_edges = self.forward(inputs, img_metas)
+        return depth_pred
 

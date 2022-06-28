@@ -30,7 +30,7 @@ class TransformerEncoderLayer(BaseModule):
             after the feed forward layer. Default: 0.0.
         attn_drop_rate (float): The drop out rate for attention layer.
             Default: 0.0.
-        drop_path_rate (float): stochastic rsimhe rate. Default 0.0.
+        drop_path_rate (float): stochastic depth rate. Default 0.0.
         num_fcs (int): The number of fully-connected layers for FFNs.
             Default: 2.
         qkv_bias (bool): enable bias for qkv if True. Default: True
@@ -120,7 +120,7 @@ class VisionTransformer(BaseModule):
         patch_size (int): The patch size. Default: 16.
         in_channels (int): Number of input channels. Default: 3.
         embed_dims (int): embedding dimension. Default: 768.
-        num_layers (int): rsimhe of transformer. Default: 12.
+        num_layers (int): depth of transformer. Default: 12.
         num_heads (int): number of attention heads. Default: 12.
         mlp_ratio (int): ratio of mlp hidden dim to embedding dim.
             Default: 4.
@@ -131,7 +131,7 @@ class VisionTransformer(BaseModule):
             Default 0.0
         attn_drop_rate (float): The drop out rate for attention layer.
             Default 0.0
-        drop_path_rate (float): stochastic rsimhe rate. Default 0.0
+        drop_path_rate (float): stochastic depth rate. Default 0.0
         with_cls_token (bool): Whether concatenating class token into image
             tokens as transformer input. Default: True.
         output_cls_token (bool): Whether output the cls_token. If set True,
@@ -246,7 +246,7 @@ class VisionTransformer(BaseModule):
 
         dpr = [
             x.item() for x in torch.linspace(0, drop_path_rate, num_layers)
-        ]  # stochastic rsimhe decay rule
+        ]  # stochastic depth decay rule
 
         self.layers = ModuleList()
         for i in range(num_layers):
