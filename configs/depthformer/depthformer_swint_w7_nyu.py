@@ -1,5 +1,5 @@
 _base_ = [
-    '../_base_/models/depthformer_swin.py', '../_base_/datasets/nyu.py',
+    '../_base_/models/depthformer_swin.py', '../_base_/datasets/gta_data.py',
     '../_base_/default_runtime.py'
 ]
 

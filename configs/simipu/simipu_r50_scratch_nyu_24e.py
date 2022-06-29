@@ -1,5 +1,5 @@
 _base_ = [
-    '../_base_/models/densedepth.py', '../_base_/datasets/nyu.py',
+    '../_base_/models/densedepth.py', '../_base_/datasets/gta_data.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_24x.py'
 ]
 

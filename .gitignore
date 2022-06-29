@@ -1,0 +1,8 @@
+/build/
+/work_dir/
+/dist/
+*.pyc
+*.tar
+*.gz
+*.zip
+*.tar.gz
