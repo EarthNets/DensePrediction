@@ -1,6 +1,6 @@
-/build/
-/work_dir/
-/dist/
+build/
+work_dir/
+dist/
 *.pyc
 *.tar
 *.gz
