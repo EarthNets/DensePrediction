@@ -143,6 +143,8 @@ class DepthEncoderDecoder(BaseDepther):
         """
 
         assert self.test_cfg.mode in ['slide', 'whole']
+        img_meta = img_meta.data
+        img_meta = img_meta[0]
         ori_shape = img_meta[0]['ori_shape']
         assert all(_['ori_shape'] == ori_shape for _ in img_meta)
         if self.test_cfg.mode == 'slide':

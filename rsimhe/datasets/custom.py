@@ -7,12 +7,15 @@ import numpy as np
 from mmcv.utils import print_log
 from terminaltables import AsciiTable
 from torch.utils.data import Dataset
+from collections import OrderedDict
+from prettytable import PrettyTable
 
-from rsimhe.core import eval_metrics
+from rsimhe.core import pre_eval_to_metrics, metrics, eval_metrics
 from rsimhe.utils import get_root_logger
 from .builder import DATASETS
 from .pipelines import Compose
 import tifffile as tiff
+from cv2 import imread, resize
 
 
 @DATASETS.register_module()
@@ -326,38 +329,100 @@ class CustomDataset(Dataset):
                 palette = self.PALETTE
         return palette
 
-    
-    def evaluate(self,
-                 results,
-                 metric='mIoU',
-                 logger=None,
-                 efficient_test=False,
-                 **kwargs):
-        """Evaluate the dataset.
 
+    def pre_eval(self, preds, indices):
+        """Collect eval result from each iteration.
         Args:
-            results (list): Testing results of the dataset.
-            metric (str | list[str]): Metrics to be evaluated. 'mIoU' and
-                'mDice' are supported.
+            preds (list[torch.Tensor] | torch.Tensor): the depth estimation.
+            indices (list[int] | int): the prediction related ground truth
+                indices.
+        Returns:
+            list[torch.Tensor]: (area_intersect, area_union, area_prediction,
+                area_ground_truth).
+        """
+        # In order to compat with batch inference
+        if not isinstance(indices, list):
+            indices = [indices]
+        if not isinstance(preds, list):
+            preds = [preds]
+
+        pre_eval_results = []
+        pre_eval_preds = []
+
+        for i, (pred, index) in enumerate(zip(preds, indices)):
+            depth_map = osp.join(self.ann_dir,
+                               self.img_infos[index]['ann']['depth_map'])
+
+            depth_map = depth_map[:-7]+'.png'
+            depth_map_gt = imread(depth_map,2) / 100. / self.depth_scale
+
+            eval = metrics(depth_map_gt,
+                           pred,
+                           min_depth=0,
+                           max_depth=200)
+
+            pre_eval_results.append(eval)
+
+            # save prediction results
+            pre_eval_preds.append(pred)
+
+        return pre_eval_results, pre_eval_preds
+
+
+
+    def evaluate(self, results, metric='eigen', logger=None, **kwargs):
+        """Evaluate the dataset.
+        Args:
+            results (list[tuple[torch.Tensor]] | list[str]): per image pre_eval
+                 results or predict depth map for computing evaluation
+                 metric.
             logger (logging.Logger | None | str): Logger used for printing
                 related information during evaluation. Default: None.
-
         Returns:
             dict[str, float]: Default metrics.
         """
+        metric = ["a1", "a2", "a3", "abs_rel", "rmse", "log_10", "rmse_log", "silog", "sq_rel"]
 
-        if isinstance(metric, str):
-            metric = [metric]
-        allowed_metrics = ['mIoU', 'mDice', 'mse']
-        if not set(metric).issubset(set(allowed_metrics)):
-            raise KeyError('metric {} is not supported'.format(metric))
         eval_results = {}
-        gt_seg_maps, gt_cls_maps = self.get_gt_seg_maps(efficient_test)
-        ret_metrics = eval_metrics(
-            results,
-            gt_seg_maps,
-            gt_cls_maps,
-            metric,
-            reduce_zero_label=self.reduce_zero_label)
+        # test a list of files
+        if mmcv.is_list_of(results, np.ndarray) or mmcv.is_list_of(
+                results, str):
+            gt_depth_maps = self.get_gt_depth_maps()
+            ret_metrics = eval_metrics(
+                gt_depth_maps,
+                results)
+        # test a list of pre_eval_results
+        else:
+            ret_metrics = pre_eval_to_metrics(results)
 
-        return ret_metrics
+        ret_metric_names = []
+        ret_metric_values = []
+        for ret_metric, ret_metric_value in ret_metrics.items():
+            ret_metric_names.append(ret_metric)
+            ret_metric_values.append(ret_metric_value)
+
+        num_table = len(ret_metrics) // 9
+        for i in range(num_table):
+            names = ret_metric_names[i*9: i*9 + 9]
+            values = ret_metric_values[i*9: i*9 + 9]
+
+            # summary table
+            ret_metrics_summary = OrderedDict({
+                ret_metric: np.round(np.nanmean(ret_metric_value), 4)
+                for ret_metric, ret_metric_value in zip(names, values)
+            })
+
+            # for logger
+            summary_table_data = PrettyTable()
+            for key, val in ret_metrics_summary.items():
+                summary_table_data.add_column(key, [val])
+
+            print_log('Summary:', logger)
+            print_log('\n' + summary_table_data.get_string(), logger=logger)
+
+        # each metric dict
+        for key, value in ret_metrics.items():
+            eval_results[key] = value
+
+        return eval_results
+

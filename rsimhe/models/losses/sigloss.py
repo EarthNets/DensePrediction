@@ -55,7 +55,6 @@ class SigLoss(nn.Module):
                 depth_gt,
                 **kwargs):
         """Forward function."""
-        
         loss_depth = self.loss_weight * self.sigloss(
             depth_pred,
             depth_gt,

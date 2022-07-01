@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# from pytorch3d.loss import chamfer_distance
+from pytorch3d.loss import chamfer_distance
 from torch.nn.utils.rnn import pad_sequence
 
 from rsimhe.models.builder import LOSSES
@@ -32,6 +32,7 @@ class BinsChamferLoss(nn.Module):
         target_points = [p[m] for p, m in zip(target_points, mask)]
         target_lengths = torch.Tensor([len(t) for t in target_points]).long().to(target_depth_maps.device)
         target_points = pad_sequence(target_points, batch_first=True).unsqueeze(2)  # .shape = n, T, 1
+        target_points = target_points.float()
 
         loss, _ = chamfer_distance(x=input_points, y=target_points, y_lengths=target_lengths)
         return loss

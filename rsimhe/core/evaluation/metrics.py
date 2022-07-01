@@ -37,6 +37,7 @@ def metrics(gt, pred, min_depth=1e-3, max_depth=80):
     mask = np.logical_and(mask_1, mask_2)
 
     gt = gt[mask]
+    pred = pred.squeeze()
     pred = pred[mask]
 
     a1, a2, a3, abs_rel, rmse, log_10, rmse_log, silog, sq_rel = calculate(gt, pred)
